@@ -28,6 +28,7 @@ const VideoChat: React.FC<VideoChatProps> = ({
   const [videoEnabled, setVideoEnabled] = useState<boolean>(true);
   const [audioEnabled, setAudioEnabled] = useState<boolean>(true);
   const [isConnecting, setIsConnecting] = useState<boolean>(true);
+  const [permissionDenied, setPermissionDenied] = useState<boolean>(false);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -66,9 +67,18 @@ const VideoChat: React.FC<VideoChatProps> = ({
         });
         
         videoCallRef.current = videoCall;
+        setPermissionDenied(false);
       } catch (error) {
         console.error('Failed to initialize video call:', error);
-        toast.error('Failed to start video call');
+        
+        // Check if the error is related to permission denial
+        if (error instanceof DOMException && 
+            (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
+          toast.error('Camera or microphone access denied. Please check your browser permissions.');
+          setPermissionDenied(true);
+        } else {
+          toast.error('Failed to start video call');
+        }
         setIsConnecting(false);
       }
     };
@@ -117,17 +127,53 @@ const VideoChat: React.FC<VideoChatProps> = ({
     onSkipMatch();
   };
 
+  const retryConnection = () => {
+    // Reset permission denied state and try again
+    setPermissionDenied(false);
+    setIsConnecting(true);
+    // Re-initialize the connection
+    if (videoCallRef.current) {
+      videoCallRef.current.close();
+      videoCallRef.current = null;
+    }
+    // The useEffect will get triggered again due to the dependency on isInitiator
+    // So we need to toggle it briefly
+    onEndCall();
+    setTimeout(() => {
+      onSkipMatch();
+    }, 500);
+  };
+
   return (
     <div className="flex flex-col w-full h-full gap-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow">
         {/* Remote video */}
         <div className="relative bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center aspect-video h-full">
-          {isConnecting && (
+          {isConnecting && !permissionDenied && (
             <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
               <div className="animate-pulse flex flex-col items-center">
                 <PhoneCall className="w-12 h-12 text-white/50 mb-3" />
                 <p className="text-white text-lg">Connecting to {remoteUserName}...</p>
                 <p className="text-white/70 text-sm mt-2">Please wait</p>
+              </div>
+            </div>
+          )}
+          
+          {permissionDenied && (
+            <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
+              <div className="flex flex-col items-center text-center">
+                <VideoOff className="w-12 h-12 text-red-400 mb-3" />
+                <p className="text-white text-lg">Camera or microphone access denied</p>
+                <p className="text-white/70 text-sm mt-2 max-w-xs">
+                  Please check your browser permissions and allow access to your camera and microphone
+                </p>
+                <Button 
+                  variant="secondary" 
+                  className="mt-4"
+                  onClick={retryConnection}
+                >
+                  Try Again
+                </Button>
               </div>
             </div>
           )}
@@ -172,6 +218,7 @@ const VideoChat: React.FC<VideoChatProps> = ({
           size="icon" 
           className={`rounded-full w-12 h-12 ${!audioEnabled ? 'bg-red-600 text-white border-red-600 hover:bg-red-700 hover:text-white' : ''}`}
           onClick={handleToggleAudio}
+          disabled={permissionDenied}
         >
           {audioEnabled ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
         </Button>
@@ -181,6 +228,7 @@ const VideoChat: React.FC<VideoChatProps> = ({
           size="icon" 
           className={`rounded-full w-12 h-12 ${!videoEnabled ? 'bg-red-600 text-white border-red-600 hover:bg-red-700 hover:text-white' : ''}`}
           onClick={handleToggleVideo}
+          disabled={permissionDenied}
         >
           {videoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
         </Button>
@@ -200,6 +248,7 @@ const VideoChat: React.FC<VideoChatProps> = ({
           onClick={handleSkipMatch}
           className="rounded-full w-12 h-12"
           title="Skip to next match"
+          disabled={permissionDenied}
         >
           <SkipForward className="h-5 w-5" />
         </Button>

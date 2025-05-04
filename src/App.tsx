@@ -14,7 +14,8 @@ import Profile from "./pages/Profile";
 import Match from "./pages/Match";
 import Network from "./pages/Network";
 import Settings from "./pages/Settings";
-import ReportForm from "./components/moderation/ReportForm";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 
 // Create a new QueryClient instance
 const queryClient = new QueryClient({
@@ -79,6 +80,8 @@ const App = () => (
           <Route path="/match" element={<Match />} />
           <Route path="/network" element={<Network />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-of-service" element={<TermsOfService />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
