@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { getCurrentUser, getProfile, updatePresenceStatus } from "@/lib/supabase";
 import MainLayout from "@/components/layout/MainLayout";
 import ProfileForm from "@/components/profile/ProfileForm";
@@ -13,6 +13,7 @@ const Profile = () => {
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const fetchUserAndProfile = async () => {
@@ -34,6 +35,9 @@ const Profile = () => {
         // If no profile exists yet, automatically set to edit mode
         if (!profileData) {
           setIsEditMode(true);
+        } else if (location.state?.editMode) {
+          // If redirected with editMode state, set to edit mode
+          setIsEditMode(true);
         }
       } catch (error) {
         console.error("Error fetching user or profile:", error);
@@ -51,7 +55,7 @@ const Profile = () => {
         updatePresenceStatus(user.id, 'offline').catch(console.error);
       }
     };
-  }, []);
+  }, [location.state]);
   
   const handleProfileComplete = () => {
     toast.success("Profile saved successfully!");

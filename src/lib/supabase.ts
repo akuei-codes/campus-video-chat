@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { Profile, User, MatchFilters } from '../types';
 
@@ -12,7 +13,7 @@ export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/profile`,
+      redirectTo: `${window.location.origin}/`, // Changed from /profile to / (home page)
       queryParams: {
         access_type: 'offline',
         prompt: 'consent',

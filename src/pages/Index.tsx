@@ -2,21 +2,56 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/layout/MainLayout';
-import { getCurrentUser } from '@/lib/supabase';
+import { getCurrentUser, getProfile } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
+import { User, Profile as ProfileType } from '@/types';
+import { toast } from 'sonner';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<ProfileType | null>(null);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
     const checkAuthState = async () => {
-      const user = await getCurrentUser();
-      setIsLoggedIn(!!user);
+      try {
+        setLoading(true);
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+        setIsLoggedIn(!!currentUser);
+        
+        if (currentUser) {
+          // Check if user has a profile
+          const userProfile = await getProfile(currentUser.id);
+          setProfile(userProfile);
+          
+          // Show a toast notification if the user is newly logged in and has no profile
+          if (!userProfile) {
+            toast.info(
+              "Welcome to IvyTV! Please complete your profile to get started.",
+              {
+                duration: 8000,
+                action: {
+                  label: "Complete Profile",
+                  onClick: () => navigate("/profile")
+                }
+              }
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error checking auth state:", error);
+      } finally {
+        setLoading(false);
+      }
     };
     
     checkAuthState();
-  }, []);
+  }, [navigate]);
   
   const handleCTA = (destination: string) => {
     if (isLoggedIn) {
@@ -28,6 +63,26 @@ const Index = () => {
 
   return (
     <MainLayout>
+      {/* Profile Completion Alert */}
+      {isLoggedIn && user && !profile && !loading && (
+        <div className="container mx-auto px-4 mt-6">
+          <Alert variant="warning" className="bg-amber-50 border-amber-200">
+            <AlertCircle className="h-5 w-5 text-amber-600" />
+            <AlertTitle className="text-amber-800">Complete your profile</AlertTitle>
+            <AlertDescription className="text-amber-700">
+              Please complete your profile to get the most out of IvyTV.
+              <Button 
+                variant="link" 
+                className="text-ivy font-medium pl-1" 
+                onClick={() => navigate("/profile")}
+              >
+                Complete Profile
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+      
       {/* Hero Section */}
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0 z-0">

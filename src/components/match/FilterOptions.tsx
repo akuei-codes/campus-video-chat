@@ -1,214 +1,201 @@
 
 import { useState } from "react";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { 
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { 
-  RadioGroup,
-  RadioGroupItem 
-} from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
-import { Filter, X } from "lucide-react";
-import { UNIVERSITIES, INTERESTS, MatchFilters } from "@/types";
-import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { UNIVERSITIES } from "@/types";
+import { MatchFilters } from "@/types";
+import { X, Filter } from "lucide-react";
 
 interface FilterOptionsProps {
-  filters: MatchFilters;
-  onFilterChange: (filters: MatchFilters) => void;
-  onResetFilters: () => void;
+  onApplyFilters: (filters: MatchFilters) => void;
+  defaultFilters?: MatchFilters;
 }
 
-const FilterOptions = ({ 
-  filters, 
-  onFilterChange,
-  onResetFilters 
-}: FilterOptionsProps) => {
+// Majors options
+const MAJORS = [
+  "Computer Science",
+  "Engineering",
+  "Business",
+  "Medicine",
+  "Law",
+  "Arts",
+  "Humanities",
+  "Sciences",
+  "Math",
+  "Other"
+];
+
+// Generate an array of graduation years from current year - 4 to current year + 4
+const currentYear = new Date().getFullYear();
+const GRADUATION_YEARS = Array.from(
+  { length: 9 },
+  (_, i) => (currentYear - 4 + i).toString()
+);
+
+export default function FilterOptions({ onApplyFilters, defaultFilters }: FilterOptionsProps) {
+  const [filters, setFilters] = useState<MatchFilters>(
+    defaultFilters || {
+      university: "",
+      gender: "",
+      major: "",
+      graduationYear: "",
+      maxDistance: 100,
+    }
+  );
+
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleUniversityChange = (value: string) => {
-    onFilterChange({
-      ...filters,
-      university: value
-    });
+  const handleChange = (field: keyof MatchFilters, value: string | number) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
-  const handleGenderChange = (value: string) => {
-    onFilterChange({
-      ...filters,
-      gender: value
-    });
+  const handleApply = () => {
+    onApplyFilters(filters);
+    setIsOpen(false);
   };
 
-  const handleMajorChange = (value: string) => {
-    onFilterChange({
-      ...filters,
-      major: value
-    });
-  };
-
-  const handleGraduationYearChange = (value: string) => {
-    onFilterChange({
-      ...filters,
-      graduationYear: value
-    });
-  };
-
-  const getActiveFiltersCount = () => {
-    return Object.values(filters).filter(value => value).length;
+  const handleReset = () => {
+    const resetFilters = {
+      university: "",
+      gender: "",
+      major: "",
+      graduationYear: "",
+      maxDistance: 100,
+    };
+    setFilters(resetFilters);
+    onApplyFilters(resetFilters);
   };
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2 hover-scale"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <Filter className="h-4 w-4" />
-          <span>Filters</span>
-          {getActiveFiltersCount() > 0 && (
-            <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center rounded-full">
-              {getActiveFiltersCount()}
-            </Badge>
-          )}
-        </Button>
-        
-        {getActiveFiltersCount() > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onResetFilters}
-            className="text-muted-foreground text-xs hover-scale"
-          >
-            <X className="h-3 w-3 mr-1" />
-            Reset filters
-          </Button>
-        )}
-      </div>
-      
+    <div className="relative">
+      <Button
+        variant="outline" 
+        className="flex items-center gap-2"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <Filter size={16} />
+        <span>Filters</span>
+      </Button>
+
       {isOpen && (
-        <div className="bg-white rounded-md shadow-sm border p-4 space-y-4 animate-fade-in">
-          <Accordion type="multiple" collapsible className="w-full">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-md shadow-lg z-50 p-4 border animate-fade-in">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-medium">Filter Settings</h3>
+            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+              <X size={18} />
+            </Button>
+          </div>
+
+          <Accordion type="multiple" className="w-full">
             <AccordionItem value="university">
-              <AccordionTrigger className="text-sm font-medium">University</AccordionTrigger>
-              <AccordionContent className="pt-2">
-                <div className="space-y-2">
-                  <RadioGroup 
-                    value={filters.university || ""} 
-                    onValueChange={handleUniversityChange}
-                    className="flex flex-col gap-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="" id="university-any" />
-                      <Label htmlFor="university-any">Any University</Label>
-                    </div>
-                    {UNIVERSITIES.map((university) => (
-                      <div key={university} className="flex items-center space-x-2">
-                        <RadioGroupItem value={university} id={`university-${university}`} />
-                        <Label htmlFor={`university-${university}`}>{university}</Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-            
-            <AccordionItem value="gender">
-              <AccordionTrigger className="text-sm font-medium">Gender</AccordionTrigger>
+              <AccordionTrigger className="py-3 text-sm">
+                University
+              </AccordionTrigger>
               <AccordionContent>
-                <RadioGroup 
-                  value={filters.gender || ""} 
-                  onValueChange={handleGenderChange}
-                  className="flex flex-col gap-2 pt-2"
+                <RadioGroup
+                  value={filters.university}
+                  onValueChange={(value) => handleChange("university", value)}
+                  className="space-y-2"
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="" id="gender-any" />
-                    <Label htmlFor="gender-any">Any gender</Label>
+                    <RadioGroupItem value="" id="univ-any" />
+                    <Label htmlFor="univ-any">Any</Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Male" id="gender-male" />
-                    <Label htmlFor="gender-male">Male</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Female" id="gender-female" />
-                    <Label htmlFor="gender-female">Female</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Other" id="gender-other" />
-                    <Label htmlFor="gender-other">Other</Label>
-                  </div>
+                  {UNIVERSITIES.map((university) => (
+                    <div key={university} className="flex items-center space-x-2">
+                      <RadioGroupItem value={university} id={`univ-${university}`} />
+                      <Label htmlFor={`univ-${university}`}>{university}</Label>
+                    </div>
+                  ))}
                 </RadioGroup>
               </AccordionContent>
             </AccordionItem>
-            
-            <AccordionItem value="major">
-              <AccordionTrigger className="text-sm font-medium">Major</AccordionTrigger>
-              <AccordionContent className="pt-2">
-                <div className="space-y-2">
-                  <RadioGroup 
-                    value={filters.major || ""} 
-                    onValueChange={handleMajorChange}
-                    className="flex flex-col gap-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="" id="major-any" />
-                      <Label htmlFor="major-any">Any Major</Label>
+
+            <AccordionItem value="gender">
+              <AccordionTrigger className="py-3 text-sm">Gender</AccordionTrigger>
+              <AccordionContent>
+                <RadioGroup
+                  value={filters.gender}
+                  onValueChange={(value) => handleChange("gender", value)}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="" id="gender-any" />
+                    <Label htmlFor="gender-any">Any</Label>
+                  </div>
+                  {["Male", "Female", "Non-binary", "Prefer not to say"].map((gender) => (
+                    <div key={gender} className="flex items-center space-x-2">
+                      <RadioGroupItem value={gender} id={`gender-${gender}`} />
+                      <Label htmlFor={`gender-${gender}`}>{gender}</Label>
                     </div>
-                    {INTERESTS.map((major) => (
-                      <div key={major} className="flex items-center space-x-2">
-                        <RadioGroupItem value={major} id={`major-${major}`} />
-                        <Label htmlFor={`major-${major}`}>{major}</Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </div>
+                  ))}
+                </RadioGroup>
               </AccordionContent>
             </AccordionItem>
-            
-            <AccordionItem value="year">
-              <AccordionTrigger className="text-sm font-medium">Graduation Year</AccordionTrigger>
-              <AccordionContent className="pt-2">
-                <div className="space-y-2">
-                  <RadioGroup 
-                    value={filters.graduationYear || ""} 
-                    onValueChange={handleGraduationYearChange}
-                    className="flex flex-col gap-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="" id="year-any" />
-                      <Label htmlFor="year-any">Any Year</Label>
+
+            <AccordionItem value="major">
+              <AccordionTrigger className="py-3 text-sm">Major</AccordionTrigger>
+              <AccordionContent>
+                <RadioGroup
+                  value={filters.major}
+                  onValueChange={(value) => handleChange("major", value)}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="" id="major-any" />
+                    <Label htmlFor="major-any">Any</Label>
+                  </div>
+                  {MAJORS.map((major) => (
+                    <div key={major} className="flex items-center space-x-2">
+                      <RadioGroupItem value={major} id={`major-${major}`} />
+                      <Label htmlFor={`major-${major}`}>{major}</Label>
                     </div>
-                    {Array.from({ length: 6 }, (_, i) => {
-                      const year = `${new Date().getFullYear() + i}`;
-                      return (
-                        <div key={year} className="flex items-center space-x-2">
-                          <RadioGroupItem value={year} id={`year-${year}`} />
-                          <Label htmlFor={`year-${year}`}>{year}</Label>
-                        </div>
-                      );
-                    })}
-                  </RadioGroup>
-                </div>
+                  ))}
+                </RadioGroup>
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="graduationYear">
+              <AccordionTrigger className="py-3 text-sm">
+                Graduation Year
+              </AccordionTrigger>
+              <AccordionContent>
+                <RadioGroup
+                  value={filters.graduationYear}
+                  onValueChange={(value) => handleChange("graduationYear", value)}
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="" id="year-any" />
+                    <Label htmlFor="year-any">Any</Label>
+                  </div>
+                  {GRADUATION_YEARS.map((year) => (
+                    <div key={year} className="flex items-center space-x-2">
+                      <RadioGroupItem value={year} id={`year-${year}`} />
+                      <Label htmlFor={`year-${year}`}>{year}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+
+          <div className="flex justify-between mt-6 pt-4 border-t">
+            <Button variant="outline" size="sm" onClick={handleReset}>
+              Reset All
+            </Button>
+            <Button size="sm" onClick={handleApply} className="bg-ivy hover:bg-ivy-dark">
+              Apply Filters
+            </Button>
+          </div>
         </div>
       )}
     </div>
   );
-};
-
-export default FilterOptions;
+}
