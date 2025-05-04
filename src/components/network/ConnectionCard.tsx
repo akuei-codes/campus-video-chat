@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Profile } from "@/types";
 import { MessageSquare, Video } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 
@@ -22,6 +22,7 @@ interface ConnectionCardProps {
 const ConnectionCard = ({ connection }: ConnectionCardProps) => {
   const [isOnline, setIsOnline] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   // Listen for real-time presence updates
   useEffect(() => {
@@ -95,6 +96,14 @@ const ConnectionCard = ({ connection }: ConnectionCardProps) => {
         return 'Offline';
     }
   };
+
+  const handleMessageClick = () => {
+    navigate(`/messages/${connection.user_id}`, { 
+      state: { 
+        connectionProfile: connection 
+      }
+    });
+  };
   
   return (
     <Card className="overflow-hidden hover:shadow-md transition-all">
@@ -136,7 +145,11 @@ const ConnectionCard = ({ connection }: ConnectionCardProps) => {
             </p>
             
             <div className="flex gap-2 mt-auto">
-              <Button size="sm" variant="outline">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleMessageClick}
+              >
                 <MessageSquare className="h-4 w-4 mr-1" />
                 Message
               </Button>

@@ -61,7 +61,7 @@ export default function FilterOptions({ onApplyFilters, defaultFilters }: Filter
   };
 
   const handleReset = () => {
-    const resetFilters = {
+    const resetFilters: MatchFilters = {
       university: "",
       gender: "",
       major: "",

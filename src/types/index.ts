@@ -74,6 +74,16 @@ export interface MatchFilters {
   gender?: string;
   major?: string;
   graduationYear?: string;
+  maxDistance?: number;
+}
+
+export interface Message {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+  read: boolean;
 }
 
 export const UNIVERSITIES = [
