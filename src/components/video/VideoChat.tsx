@@ -118,46 +118,55 @@ const VideoChat: React.FC<VideoChatProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full h-full gap-3">
-      {/* Remote video (top row) */}
-      <div className="relative flex-grow bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center">
-        {isConnecting && (
-          <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
-            <div className="animate-pulse flex flex-col items-center">
-              <PhoneCall className="w-12 h-12 text-white/50 mb-3" />
-              <p className="text-white text-lg">Connecting to {remoteUserName}...</p>
-              <p className="text-white/70 text-sm mt-2">Please wait</p>
+    <div className="flex flex-col w-full h-full gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-grow">
+        {/* Remote video */}
+        <div className="relative bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center aspect-video h-full">
+          {isConnecting && (
+            <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
+              <div className="animate-pulse flex flex-col items-center">
+                <PhoneCall className="w-12 h-12 text-white/50 mb-3" />
+                <p className="text-white text-lg">Connecting to {remoteUserName}...</p>
+                <p className="text-white/70 text-sm mt-2">Please wait</p>
+              </div>
             </div>
+          )}
+          
+          <video 
+            ref={remoteVideoRef}
+            autoPlay 
+            playsInline
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-sm rounded">
+            {remoteUserName}
           </div>
-        )}
+        </div>
         
-        <video 
-          ref={remoteVideoRef}
-          autoPlay 
-          playsInline
-          className="w-full h-full object-cover"
-        />
-      </div>
-      
-      {/* Local video (bottom row) */}
-      <div className="relative h-32 bg-gray-800 rounded-md overflow-hidden border-2 border-white">
-        <video 
-          ref={localVideoRef}
-          autoPlay 
-          playsInline 
-          muted 
-          className="w-full h-full object-cover"
-        />
-        
-        {!videoEnabled && (
-          <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center">
-            <VideoOff className="w-6 h-6 text-white/70" />
+        {/* Local video */}
+        <div className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video h-full">
+          <video 
+            ref={localVideoRef}
+            autoPlay 
+            playsInline 
+            muted 
+            className="w-full h-full object-cover"
+          />
+          
+          {!videoEnabled && (
+            <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center">
+              <VideoOff className="w-10 h-10 text-white/70" />
+            </div>
+          )}
+          
+          <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-sm rounded">
+            You
           </div>
-        )}
+        </div>
       </div>
       
       {/* Video call controls */}
-      <div className="flex justify-center gap-3 mt-3">
+      <div className="flex justify-center gap-3 mt-2">
         <Button 
           variant="outline" 
           size="icon" 
