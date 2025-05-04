@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { uploadProfilePhoto } from "@/lib/supabase";
 import { toast } from "sonner";
-import { User, X } from "lucide-react";
+import { User, X, Image } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface PhotoUploadProps {
@@ -45,14 +45,29 @@ const PhotoUpload = ({
         return;
       }
       
-      const url = await uploadProfilePhoto(userId, file, index);
-      const updatedPhotos = [...photos, url];
+      // Create a preview URL
+      const previewUrl = URL.createObjectURL(file);
+      const updatedPhotos = [...photos, previewUrl];
       setPhotos(updatedPhotos);
       onPhotosChange(updatedPhotos);
+      
+      // Upload in background
+      const url = await uploadProfilePhoto(userId, file, index);
+      
+      // Update with actual URL once upload is complete
+      const finalPhotos = [...photos.slice(0, index), url];
+      setPhotos(finalPhotos);
+      onPhotosChange(finalPhotos);
+      
       toast.success("Photo uploaded successfully");
     } catch (error) {
       console.error("Error uploading photo:", error);
       toast.error("Failed to upload photo. Please try again.");
+      
+      // Remove the preview if upload failed
+      const updatedPhotos = [...photos];
+      setPhotos(updatedPhotos);
+      onPhotosChange(updatedPhotos);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -65,6 +80,12 @@ const PhotoUpload = ({
     try {
       setIsUploading(true);
       const file = event.target.files[0];
+      
+      // Create a preview URL
+      const previewUrl = URL.createObjectURL(file);
+      onAvatarChange(previewUrl);
+      
+      // Upload in background
       const url = await uploadProfilePhoto(userId, file, 'avatar');
       onAvatarChange(url);
       toast.success("Profile picture updated");
@@ -115,11 +136,12 @@ const PhotoUpload = ({
       )}
       
       <div className="space-y-2">
-        <div className="photo-grid">
+        <h3 className="text-sm font-medium">Additional Photos</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {Array.from({ length: maxPhotos }).map((_, index) => (
             <div 
               key={index}
-              className="relative aspect-square rounded-md overflow-hidden border border-dashed border-gray-300 flex items-center justify-center bg-gray-50"
+              className="relative aspect-square rounded-md overflow-hidden border border-dashed border-gray-300 flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors"
             >
               {index < photos.length ? (
                 <>
@@ -128,21 +150,28 @@ const PhotoUpload = ({
                     alt={`Photo ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
-                  <button
-                    type="button"
-                    className="absolute top-2 right-2 bg-black/50 rounded-full p-1 text-white hover:bg-black/70 transition-colors"
-                    onClick={() => removePhoto(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-opacity flex items-center justify-center">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8 opacity-80 hover:opacity-100"
+                      onClick={() => removePhoto(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </>
               ) : (
                 <div 
-                  className="w-full h-full flex items-center justify-center cursor-pointer text-gray-400 hover:text-gray-600"
+                  className="w-full h-full flex flex-col items-center justify-center cursor-pointer text-gray-400 hover:text-gray-600 p-4"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   {index === photos.length && !isUploading ? (
-                    <span className="text-sm font-medium">+ Add Photo</span>
+                    <>
+                      <Image className="h-8 w-8 mb-2" />
+                      <span className="text-xs text-center">Add Photo</span>
+                    </>
                   ) : (
                     <span className="text-xs text-muted-foreground">Empty</span>
                   )}
@@ -163,6 +192,7 @@ const PhotoUpload = ({
         
         <p className="text-xs text-muted-foreground mt-2">
           Upload up to {maxPhotos} photos to showcase yourself
+          {isUploading && " (Uploading...)"}
         </p>
       </div>
     </div>

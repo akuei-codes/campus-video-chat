@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { getCurrentUser, getProfile, updatePresenceStatus } from "@/lib/supabase";
@@ -43,6 +44,13 @@ const Profile = () => {
     };
     
     fetchUserAndProfile();
+    
+    // Update presence status to offline when component unmounts
+    return () => {
+      if (user) {
+        updatePresenceStatus(user.id, 'offline').catch(console.error);
+      }
+    };
   }, []);
   
   const handleProfileComplete = () => {

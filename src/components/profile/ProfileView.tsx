@@ -98,10 +98,18 @@ const ProfileView = ({ profile, onEdit }: ProfileViewProps) => {
             {profile.additional_photos && profile.additional_photos.length > 0 && (
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Photos</h3>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 mt-2">
                   {profile.additional_photos.map((photo, i) => (
-                    <div key={i} className="aspect-square rounded-md overflow-hidden hover-scale">
-                      <img src={photo} alt="User uploaded" className="w-full h-full object-cover" />
+                    <div 
+                      key={i} 
+                      className="aspect-square rounded-md overflow-hidden hover-scale shadow-sm border border-gray-100"
+                    >
+                      <img 
+                        src={photo} 
+                        alt={`${profile.full_name}'s photo ${i + 1}`} 
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
                     </div>
                   ))}
                 </div>
