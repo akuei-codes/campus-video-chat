@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Profile, User, MatchFilters } from '../types';
 
@@ -290,12 +289,30 @@ export async function createVideoRoom(user1Id: string, user2Id: string) {
   const roomToken = Math.random().toString(36).substring(2, 15) + 
                    Math.random().toString(36).substring(2, 15);
   
+  // Check if room already exists between these users
+  const { data: existingRoom, error: findError } = await supabase
+    .from('video_rooms')
+    .select('*')
+    .or(`and(user1_id.eq.${user1Id},user2_id.eq.${user2Id}),and(user1_id.eq.${user2Id},user2_id.eq.${user1Id})`)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  
+  if (findError) throw findError;
+  
+  // If room exists, return it
+  if (existingRoom && existingRoom.length > 0) {
+    return existingRoom[0];
+  }
+  
+  // Otherwise create a new room
   const { data, error } = await supabase
     .from('video_rooms')
     .insert({
       room_token: roomToken,
       user1_id: user1Id,
-      user2_id: user2Id
+      user2_id: user2Id,
+      status: 'active'
     })
     .select();
     

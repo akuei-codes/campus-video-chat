@@ -13,11 +13,12 @@ import {
 } from "@/lib/supabase";
 import { User, Profile, MatchFilters } from "@/types";
 import { toast } from "sonner";
-import { Flag, Video, X } from "lucide-react";
+import { Flag } from "lucide-react";
 import ReportForm from "@/components/moderation/ReportForm";
 import { OnlineUsers } from "@/components/network/OnlineUsers";
 import { Share } from "@/components/network/Share";
 import FilterOptions from "@/components/match/FilterOptions";
+import VideoChat from "@/components/video/VideoChat";
 
 const Match = () => {
   const location = useLocation();
@@ -37,6 +38,7 @@ const Match = () => {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [noActiveUsers, setNoActiveUsers] = useState(false);
   const [filters, setFilters] = useState<MatchFilters>({});
+  const [currentRoomId, setCurrentRoomId] = useState<string>("");
 
   useEffect(() => {
     const fetchUserAndProfile = async () => {
@@ -62,7 +64,10 @@ const Match = () => {
             
             // If no room ID provided, create a video room
             if (!roomId) {
-              await createVideoRoom(userData.id, targetUserId);
+              const room = await createVideoRoom(userData.id, targetUserId);
+              setCurrentRoomId(room.id);
+            } else {
+              setCurrentRoomId(roomId);
             }
           }
         }
@@ -208,7 +213,8 @@ const Match = () => {
         
         // Create a room in the database
         if (user) {
-          await createVideoRoom(user.id, matchUser.user_id);
+          const room = await createVideoRoom(user.id, matchUser.user_id);
+          setCurrentRoomId(room.id);
           await updatePresenceStatus(user.id, 'in_call');
         }
         
@@ -227,6 +233,7 @@ const Match = () => {
   const endCall = async () => {
     setInCall(false);
     setMatchedUser(null);
+    setCurrentRoomId("");
     
     try {
       if (user) {
@@ -286,38 +293,27 @@ const Match = () => {
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                <div className="relative aspect-video bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center">
-                  <div className="text-center text-white">
-                    <Video className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>Video placeholder - WebRTC integration would go here</p>
-                    <p className="text-sm text-gray-400 mt-2">Connected with {matchedUser?.full_name}</p>
-                  </div>
-                  
-                  {/* Small self-view */}
-                  <div className="absolute bottom-4 right-4 w-32 aspect-video bg-gray-700 rounded-md overflow-hidden border-2 border-white flex items-center justify-center">
-                    <div className="text-center text-white">
-                      <p className="text-xs">You</p>
-                    </div>
-                  </div>
-                </div>
+                {/* Replace placeholder with real VideoChat component */}
+                {user && matchedUser && currentRoomId && (
+                  <VideoChat
+                    roomId={currentRoomId}
+                    localUserId={user.id}
+                    remoteUserId={matchedUser.user_id}
+                    remoteUserName={matchedUser.full_name}
+                    isInitiator={user.id < matchedUser.user_id} // Deterministic initiator based on user IDs
+                    onEndCall={endCall}
+                  />
+                )}
                 
-                <div className="flex justify-center space-x-4 mt-6">
+                <div className="flex justify-center mt-6">
                   <Button 
                     variant="outline" 
                     size="lg" 
                     className="border-red-200 text-red-500 hover:bg-red-50"
-                    onClick={() => setIsReportOpen(true)}
+                    onClick={openReportForm}
                   >
                     <Flag className="mr-2 h-5 w-5" />
                     Report
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="lg"
-                    onClick={endCall}
-                  >
-                    <X className="mr-2 h-5 w-5" />
-                    End Call
                   </Button>
                 </div>
               </div>
@@ -389,7 +385,6 @@ const Match = () => {
                 </p>
               </div>
 
-              {/* Add Filter Options Component */}
               <FilterOptions 
                 filters={filters} 
                 onFilterChange={handleFilterChange}
