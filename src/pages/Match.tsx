@@ -17,6 +17,7 @@ import { Flag, Video, X } from "lucide-react";
 import ReportForm from "@/components/moderation/ReportForm";
 import { OnlineUsers } from "@/components/network/OnlineUsers";
 import { Share } from "@/components/network/Share";
+import FilterOptions, { MatchFilters } from "@/components/match/FilterOptions";
 
 const Match = () => {
   const location = useLocation();
@@ -35,6 +36,7 @@ const Match = () => {
   const [onlineUsers, setOnlineUsers] = useState<Profile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [noActiveUsers, setNoActiveUsers] = useState(false);
+  const [filters, setFilters] = useState<MatchFilters>({});
 
   useEffect(() => {
     const fetchUserAndProfile = async () => {
@@ -66,7 +68,7 @@ const Match = () => {
         }
         
         // Fetch online users
-        fetchOnlineUsers(userData.id);
+        await fetchOnlineUsers(userData.id);
       } catch (error) {
         console.error("Error fetching user or profile:", error);
         toast.error("Failed to load user data");
@@ -78,10 +80,17 @@ const Match = () => {
     fetchUserAndProfile();
   }, [targetUserId, roomId]);
 
+  // Watch for filter changes and refresh users when they change
+  useEffect(() => {
+    if (user?.id) {
+      fetchOnlineUsers(user.id);
+    }
+  }, [filters, user?.id]);
+
   const fetchOnlineUsers = async (currentUserId: string) => {
     try {
       setLoadingUsers(true);
-      const users = await getOnlineUsers(currentUserId);
+      const users = await getOnlineUsers(currentUserId, filters);
       setOnlineUsers(users);
       setNoActiveUsers(users.length === 0);
     } catch (error) {
@@ -121,7 +130,7 @@ const Match = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isMatching, noActiveUsers]);
+  }, [isMatching, noActiveUsers, onlineUsers]);
   
   // Update presence status based on app state
   useEffect(() => {
@@ -143,6 +152,14 @@ const Match = () => {
     
     updateStatus();
   }, [user, isMatching, inCall]);
+
+  const handleFilterChange = (newFilters: MatchFilters) => {
+    setFilters(newFilters);
+  };
+
+  const resetFilters = () => {
+    setFilters({});
+  };
 
   const startMatching = async () => {
     if (!profile) {
@@ -172,7 +189,9 @@ const Match = () => {
     toast.info("Matching cancelled");
     
     try {
-      await updatePresenceStatus(user!.id, 'online');
+      if (user) {
+        await updatePresenceStatus(user.id, 'online');
+      }
     } catch (error) {
       console.error("Error updating status:", error);
     }
@@ -181,32 +200,24 @@ const Match = () => {
   const handleMatchFound = async () => {
     setIsMatching(false);
     
-    // Simulate getting a matched user (in a real implementation, this would come from the server)
     try {
-      // Use one of the online users if available, otherwise use fake data
-      const matchUser = onlineUsers.length > 0 
-        ? onlineUsers[Math.floor(Math.random() * onlineUsers.length)]
-        : {
-            id: "matched-1",
-            user_id: "matched-user-1",
-            full_name: "Alex Johnson",
-            university: "Harvard University",
-            major: "Computer Science",
-            graduation_year: "2025",
-            avatar_url: "https://i.pravatar.cc/300?img=11",
-            gender: "Male"
-          };
-      
-      setMatchedUser(matchUser as Profile);
-      
-      // Create a room in the database
-      if (user) {
-        await createVideoRoom(user.id, matchUser.user_id);
-        await updatePresenceStatus(user.id, 'in_call');
+      // Use one of the online users that match our filters
+      if (onlineUsers.length > 0) {
+        const matchUser = onlineUsers[Math.floor(Math.random() * onlineUsers.length)];
+        setMatchedUser(matchUser);
+        
+        // Create a room in the database
+        if (user) {
+          await createVideoRoom(user.id, matchUser.user_id);
+          await updatePresenceStatus(user.id, 'in_call');
+        }
+        
+        toast.success(`Match found! Starting video call with ${matchUser.full_name}...`);
+        setInCall(true);
+      } else {
+        toast.error("No users matching your criteria found. Try changing your filters.");
+        setNoActiveUsers(true);
       }
-      
-      toast.success("Match found! Starting video call...");
-      setInCall(true);
     } catch (error) {
       console.error("Error handling match:", error);
       toast.error("There was a problem connecting to your match");
@@ -334,6 +345,22 @@ const Match = () => {
                             <span className="text-sm font-medium">Class of:</span>
                             <span className="text-sm text-muted-foreground ml-2">{matchedUser?.graduation_year}</span>
                           </div>
+                          {matchedUser?.gender && (
+                            <div>
+                              <span className="text-sm font-medium">Gender:</span>
+                              <span className="text-sm text-muted-foreground ml-2">{matchedUser?.gender}</span>
+                            </div>
+                          )}
+                          {matchedUser?.interests && matchedUser.interests.length > 0 && (
+                            <div>
+                              <span className="text-sm font-medium">Interests:</span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {matchedUser.interests.map((interest, i) => (
+                                  <Badge key={i} variant="secondary" className="text-xs">{interest}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                         
                         <div className="mt-6 border-t pt-4">
@@ -361,6 +388,13 @@ const Match = () => {
                   Connect through video chat with students across Ivy League universities
                 </p>
               </div>
+
+              {/* Add Filter Options Component */}
+              <FilterOptions 
+                filters={filters} 
+                onFilterChange={handleFilterChange}
+                onResetFilters={resetFilters}
+              />
 
               <Card className="glass border-0 shadow-lg overflow-hidden">
                 <CardContent className="p-8">
@@ -392,6 +426,35 @@ const Match = () => {
                             ? "No users are currently online. Invite your friends to join!"
                             : "Click the button below to join the queue and get matched with another Ivy League student for a video chat."}
                       </p>
+                      
+                      {/* Show filter summary if filters are applied */}
+                      {Object.values(filters).some(f => f) && !isMatching && (
+                        <div className="mt-3 p-2 bg-gray-50 rounded-md">
+                          <p className="text-sm font-medium text-gray-700">Currently filtering for:</p>
+                          <div className="flex flex-wrap gap-1 mt-1 justify-center">
+                            {filters.university && (
+                              <Badge variant="outline" className="text-xs bg-green-50">
+                                {filters.university}
+                              </Badge>
+                            )}
+                            {filters.gender && (
+                              <Badge variant="outline" className="text-xs bg-blue-50">
+                                {filters.gender}
+                              </Badge>
+                            )}
+                            {filters.major && (
+                              <Badge variant="outline" className="text-xs bg-purple-50">
+                                {filters.major}
+                              </Badge>
+                            )}
+                            {filters.graduationYear && (
+                              <Badge variant="outline" className="text-xs bg-amber-50">
+                                Class of {filters.graduationYear}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="pt-4">

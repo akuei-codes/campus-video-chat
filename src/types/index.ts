@@ -69,6 +69,13 @@ export interface ReportReason {
   description: string;
 }
 
+export interface MatchFilters {
+  university?: string;
+  gender?: string;
+  major?: string;
+  graduationYear?: string;
+}
+
 export const UNIVERSITIES = [
   "Harvard University",
   "Yale University",

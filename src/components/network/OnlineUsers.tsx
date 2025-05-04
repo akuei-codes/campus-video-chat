@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -9,19 +8,55 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { UserRoundPlus, Users, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Share } from "@/components/network/Share";
-import { Profile } from "@/types";
-import { createVideoRoom, updatePresenceStatus } from "@/lib/supabase";
+import { Profile, MatchFilters } from "@/types";
+import { createVideoRoom, updatePresenceStatus, getOnlineUsers } from "@/lib/supabase";
 
 interface OnlineUsersProps {
-  onlineUsers: Profile[];
   currentUserId?: string;
-  refreshOnlineUsers: () => void;
-  isLoading: boolean;
+  filters?: MatchFilters;
+  refreshOnlineUsers?: () => void;
+  isLoading?: boolean;
+  onlineUsers?: Profile[];
 }
 
-export const OnlineUsers = ({ onlineUsers, currentUserId, refreshOnlineUsers, isLoading }: OnlineUsersProps) => {
+export const OnlineUsers = ({ 
+  currentUserId, 
+  filters = {}, 
+  refreshOnlineUsers,
+  isLoading = false,
+  onlineUsers: providedOnlineUsers
+}: OnlineUsersProps) => {
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Profile[]>([]);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  
+  useEffect(() => {
+    // If onlineUsers are provided as props, use them
+    if (providedOnlineUsers) {
+      setOnlineUsers(providedOnlineUsers);
+      return;
+    }
+
+    // Otherwise fetch them if we have a currentUserId
+    if (currentUserId) {
+      fetchOnlineUsers();
+    }
+  }, [currentUserId, filters, providedOnlineUsers]);
+
+  const fetchOnlineUsers = async () => {
+    if (!currentUserId) return;
+    
+    try {
+      setLoading(true);
+      const users = await getOnlineUsers(currentUserId, filters);
+      setOnlineUsers(users);
+    } catch (error) {
+      console.error('Error fetching online users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const inviteToCall = async (targetUser: Profile) => {
     if (!currentUserId) return;
@@ -45,6 +80,14 @@ export const OnlineUsers = ({ onlineUsers, currentUserId, refreshOnlineUsers, is
       toast.error('Failed to invite user to call');
     }
   };
+
+  const handleRefresh = () => {
+    if (refreshOnlineUsers) {
+      refreshOnlineUsers();
+    } else {
+      fetchOnlineUsers();
+    }
+  };
   
   return (
     <Card className="glass border-0 shadow-lg">
@@ -59,10 +102,10 @@ export const OnlineUsers = ({ onlineUsers, currentUserId, refreshOnlineUsers, is
           <Button 
             size="sm" 
             variant="ghost" 
-            onClick={refreshOnlineUsers}
-            disabled={isLoading}
+            onClick={handleRefresh}
+            disabled={isLoading || loading}
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${(isLoading || loading) ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </CardHeader>
