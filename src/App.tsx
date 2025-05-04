@@ -10,6 +10,9 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import Match from "./pages/Match";
+import Network from "./pages/Network";
+import Settings from "./pages/Settings";
+import ReportForm from "./components/moderation/ReportForm";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +27,8 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/match" element={<Match />} />
+          <Route path="/network" element={<Network />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
