@@ -20,15 +20,8 @@ import {
 } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { Filter, X } from "lucide-react";
-import { UNIVERSITIES, INTERESTS } from "@/types";
+import { UNIVERSITIES, INTERESTS, MatchFilters } from "@/types";
 import { Badge } from "@/components/ui/badge";
-
-export type MatchFilters = {
-  university?: string;
-  gender?: string;
-  major?: string;
-  graduationYear?: string;
-}
 
 interface FilterOptionsProps {
   filters: MatchFilters;
@@ -81,7 +74,7 @@ const FilterOptions = ({
         <Button
           variant="outline"
           size="sm"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 hover-scale"
           onClick={() => setIsOpen(!isOpen)}
         >
           <Filter className="h-4 w-4" />
@@ -98,7 +91,7 @@ const FilterOptions = ({
             variant="ghost"
             size="sm"
             onClick={onResetFilters}
-            className="text-muted-foreground text-xs"
+            className="text-muted-foreground text-xs hover-scale"
           >
             <X className="h-3 w-3 mr-1" />
             Reset filters
@@ -107,7 +100,7 @@ const FilterOptions = ({
       </div>
       
       {isOpen && (
-        <div className="bg-white rounded-md shadow-sm border p-4 space-y-4">
+        <div className="bg-white rounded-md shadow-sm border p-4 space-y-4 animate-fade-in">
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="university">
               <AccordionTrigger className="text-sm font-medium">University</AccordionTrigger>

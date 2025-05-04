@@ -1,9 +1,31 @@
 
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/layout/MainLayout';
+import { getCurrentUser } from '@/lib/supabase';
+import { useEffect, useState } from 'react';
 
 const Index = () => {
+  const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
+  useEffect(() => {
+    const checkAuthState = async () => {
+      const user = await getCurrentUser();
+      setIsLoggedIn(!!user);
+    };
+    
+    checkAuthState();
+  }, []);
+  
+  const handleCTA = (destination: string) => {
+    if (isLoggedIn) {
+      navigate(destination);
+    } else {
+      navigate('/login');
+    }
+  };
+
   return (
     <MainLayout>
       {/* Hero Section */}
@@ -19,7 +41,7 @@ const Index = () => {
         </div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="flex flex-col lg:flex-row items-center max-w-6xl mx-auto">
-            <div className="lg:w-1/2 mb-12 lg:mb-0">
+            <div className="lg:w-1/2 mb-12 lg:mb-0 animate-fade-in">
               <h1 className="text-5xl font-bold tracking-tight text-ivy mb-6">
                 <span className="block">Connect with</span>
                 <span className="block">Ivy League Students</span>
@@ -28,16 +50,19 @@ const Index = () => {
                 IvyTV enables authentic connections between students across prestigious universities through spontaneous one-on-one video chats.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Link to="/login">
-                  <Button className="bg-ivy hover:bg-ivy-dark text-white px-8 py-6 rounded-md text-lg font-medium">
-                    Join Now
-                  </Button>
-                </Link>
-                <Link to="/login">
-                  <Button variant="outline" className="px-8 py-6 rounded-md text-lg font-medium">
-                    Learn More
-                  </Button>
-                </Link>
+                <Button 
+                  className="bg-ivy hover:bg-ivy-dark text-white px-8 py-6 rounded-md text-lg font-medium hover-scale"
+                  onClick={() => handleCTA('/match')}
+                >
+                  Join Now
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="px-8 py-6 rounded-md text-lg font-medium hover-scale"
+                  onClick={() => navigate('/network')}
+                >
+                  Learn More
+                </Button>
               </div>
               <div className="flex items-center mt-8 text-sm text-gray-500">
                 <div className="flex items-center mr-6">
@@ -50,8 +75,8 @@ const Index = () => {
                 </div>
               </div>
             </div>
-            <div className="lg:w-1/2 lg:pl-12">
-              <div className="relative">
+            <div className="lg:w-1/2 lg:pl-12 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+              <div className="relative hover-scale">
                 <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-ivy/50 to-ivy/30 blur-sm"></div>
                 <div className="rounded-xl overflow-hidden relative z-10 glass">
                   <div className="aspect-video w-full bg-gray-800">
@@ -63,7 +88,10 @@ const Index = () => {
                           </div>
                           <h3 className="text-lg font-medium text-center">Connect with other Ivy League students</h3>
                           <p className="text-gray-500 text-center text-sm">Video chat with students from all Ivy League universities</p>
-                          <Button className="bg-ivy hover:bg-ivy-dark mt-2">
+                          <Button 
+                            className="bg-ivy hover:bg-ivy-dark mt-2"
+                            onClick={() => handleCTA('/match')}
+                          >
                             Start Matching
                           </Button>
                         </div>
@@ -80,7 +108,7 @@ const Index = () => {
       {/* Features Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16 animate-fade-in">
             <h2 className="text-3xl font-bold text-ivy">Why IvyTV?</h2>
             <p className="text-gray-600 mt-2 max-w-2xl mx-auto">
               Our platform is designed specifically for Ivy League students to foster meaningful connections
@@ -88,7 +116,7 @@ const Index = () => {
           </div>
           
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            <div className="hover-card bg-white rounded-lg p-8 text-center shadow">
+            <div className="hover-card bg-white rounded-lg p-8 text-center shadow hover-scale">
               <div className="w-16 h-16 mx-auto mb-6 bg-ivy/10 rounded-full flex items-center justify-center">
                 <svg className="w-8 h-8 text-ivy" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
               </div>
@@ -98,7 +126,7 @@ const Index = () => {
               </p>
             </div>
             
-            <div className="hover-card bg-white rounded-lg p-8 text-center shadow">
+            <div className="hover-card bg-white rounded-lg p-8 text-center shadow hover-scale">
               <div className="w-16 h-16 mx-auto mb-6 bg-ivy/10 rounded-full flex items-center justify-center">
                 <svg className="w-8 h-8 text-ivy" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
               </div>
@@ -108,7 +136,7 @@ const Index = () => {
               </p>
             </div>
             
-            <div className="hover-card bg-white rounded-lg p-8 text-center shadow">
+            <div className="hover-card bg-white rounded-lg p-8 text-center shadow hover-scale">
               <div className="w-16 h-16 mx-auto mb-6 bg-ivy/10 rounded-full flex items-center justify-center">
                 <svg className="w-8 h-8 text-ivy" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
               </div>
@@ -124,16 +152,17 @@ const Index = () => {
       {/* CTA Section */}
       <section className="py-20">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
+          <div className="max-w-3xl mx-auto text-center animate-fade-in">
             <h2 className="text-3xl font-bold text-ivy mb-6">Ready to Connect?</h2>
             <p className="text-lg text-gray-600 mb-8">
               Join IvyTV today and start building meaningful connections with fellow Ivy League students.
             </p>
-            <Link to="/login">
-              <Button className="bg-ivy hover:bg-ivy-dark text-white px-8 py-6 rounded-md text-lg font-medium">
-                Get Started Now
-              </Button>
-            </Link>
+            <Button 
+              className="bg-ivy hover:bg-ivy-dark text-white px-8 py-6 rounded-md text-lg font-medium hover-scale"
+              onClick={() => handleCTA('/match')}
+            >
+              Get Started Now
+            </Button>
           </div>
         </div>
       </section>
