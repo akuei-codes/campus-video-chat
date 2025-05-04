@@ -58,7 +58,11 @@ const Profile = () => {
     setIsEditMode(false);
     // Refresh profile data
     if (user) {
-      getProfile(user.id).then(setProfile).catch(console.error);
+      getProfile(user.id)
+        .then(updatedProfile => {
+          setProfile(updatedProfile);
+        })
+        .catch(console.error);
     }
   };
 

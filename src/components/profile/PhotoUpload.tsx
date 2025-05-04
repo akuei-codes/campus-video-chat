@@ -55,7 +55,8 @@ const PhotoUpload = ({
       const url = await uploadProfilePhoto(userId, file, index);
       
       // Update with actual URL once upload is complete
-      const finalPhotos = [...photos.slice(0, index), url];
+      const finalPhotos = [...photos];
+      finalPhotos[index] = url; // Replace the preview URL with the actual URL
       setPhotos(finalPhotos);
       onPhotosChange(finalPhotos);
       
@@ -66,6 +67,7 @@ const PhotoUpload = ({
       
       // Remove the preview if upload failed
       const updatedPhotos = [...photos];
+      updatedPhotos.pop(); // Remove the last added photo (the one that failed)
       setPhotos(updatedPhotos);
       onPhotosChange(updatedPhotos);
     } finally {
