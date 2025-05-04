@@ -8,16 +8,20 @@ import {
   getCurrentUser, 
   getProfile, 
   updatePresenceStatus,
-  createVideoRoom
+  createVideoRoom,
+  getOnlineUsers
 } from "@/lib/supabase";
 import { User, Profile } from "@/types";
 import { toast } from "sonner";
 import { Flag, Video, X } from "lucide-react";
 import ReportForm from "@/components/moderation/ReportForm";
+import { OnlineUsers } from "@/components/network/OnlineUsers";
+import { Share } from "@/components/network/Share";
 
 const Match = () => {
   const location = useLocation();
   const targetUserId = location.state?.targetUserId;
+  const roomId = location.state?.roomId;
 
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -27,6 +31,10 @@ const Match = () => {
   const [matchedUser, setMatchedUser] = useState<Profile | null>(null);
   const [inCall, setInCall] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Profile[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [noActiveUsers, setNoActiveUsers] = useState(false);
 
   useEffect(() => {
     const fetchUserAndProfile = async () => {
@@ -50,10 +58,15 @@ const Match = () => {
             setMatchedUser(targetProfile);
             setInCall(true);
             
-            // Create a video room
-            await createVideoRoom(userData.id, targetUserId);
+            // If no room ID provided, create a video room
+            if (!roomId) {
+              await createVideoRoom(userData.id, targetUserId);
+            }
           }
         }
+        
+        // Fetch online users
+        fetchOnlineUsers(userData.id);
       } catch (error) {
         console.error("Error fetching user or profile:", error);
         toast.error("Failed to load user data");
@@ -63,7 +76,20 @@ const Match = () => {
     };
     
     fetchUserAndProfile();
-  }, [targetUserId]);
+  }, [targetUserId, roomId]);
+
+  const fetchOnlineUsers = async (currentUserId: string) => {
+    try {
+      setLoadingUsers(true);
+      const users = await getOnlineUsers(currentUserId);
+      setOnlineUsers(users);
+      setNoActiveUsers(users.length === 0);
+    } catch (error) {
+      console.error("Error fetching online users:", error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
 
   // Simulate matching process
   useEffect(() => {
@@ -73,6 +99,14 @@ const Match = () => {
       interval = window.setInterval(() => {
         setMatchCounter(prev => {
           if (prev >= 100) {
+            // If no online users, show no active users message
+            if (noActiveUsers) {
+              setIsMatching(false);
+              toast.error("No active users found. Invite your friends to join!");
+              setIsShareOpen(true);
+              return 0;
+            }
+            
             // Simulate finding a match
             handleMatchFound();
             return 0;
@@ -87,7 +121,7 @@ const Match = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isMatching]);
+  }, [isMatching, noActiveUsers]);
   
   // Update presence status based on app state
   useEffect(() => {
@@ -113,6 +147,12 @@ const Match = () => {
   const startMatching = async () => {
     if (!profile) {
       toast.error("Please complete your profile first");
+      return;
+    }
+    
+    if (noActiveUsers) {
+      toast.warning("No users are currently online. Invite your friends to join!");
+      setIsShareOpen(true);
       return;
     }
     
@@ -143,46 +183,25 @@ const Match = () => {
     
     // Simulate getting a matched user (in a real implementation, this would come from the server)
     try {
-      // In a real implementation, we'd get this from Supabase Realtime
-      const fakeMatchedProfiles = [
-        {
-          id: "matched-1",
-          user_id: "matched-user-1",
-          full_name: "Alex Johnson",
-          university: "Harvard University",
-          major: "Computer Science",
-          graduation_year: "2025",
-          avatar_url: "https://i.pravatar.cc/300?img=11",
-          gender: "Male"
-        },
-        {
-          id: "matched-2",
-          user_id: "matched-user-2",
-          full_name: "Emma Davis",
-          university: "Yale University",
-          major: "Economics",
-          graduation_year: "2024",
-          avatar_url: "https://i.pravatar.cc/300?img=5",
-          gender: "Female"
-        },
-        {
-          id: "matched-3",
-          user_id: "matched-user-3",
-          full_name: "Michael Smith",
-          university: "Princeton University",
-          major: "Physics",
-          graduation_year: "2026",
-          avatar_url: "https://i.pravatar.cc/300?img=12",
-          gender: "Male"
-        }
-      ];
+      // Use one of the online users if available, otherwise use fake data
+      const matchUser = onlineUsers.length > 0 
+        ? onlineUsers[Math.floor(Math.random() * onlineUsers.length)]
+        : {
+            id: "matched-1",
+            user_id: "matched-user-1",
+            full_name: "Alex Johnson",
+            university: "Harvard University",
+            major: "Computer Science",
+            graduation_year: "2025",
+            avatar_url: "https://i.pravatar.cc/300?img=11",
+            gender: "Male"
+          };
       
-      const randomMatch = fakeMatchedProfiles[Math.floor(Math.random() * fakeMatchedProfiles.length)];
-      setMatchedUser(randomMatch as Profile);
+      setMatchedUser(matchUser as Profile);
       
       // Create a room in the database
       if (user) {
-        await createVideoRoom(user.id, randomMatch.user_id);
+        await createVideoRoom(user.id, matchUser.user_id);
         await updatePresenceStatus(user.id, 'in_call');
       }
       
@@ -334,95 +353,123 @@ const Match = () => {
             </div>
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-8 text-center">
-              <h1 className="text-3xl font-bold text-ivy">Match with Ivy League Students</h1>
-              <p className="text-muted-foreground mt-2">
-                Connect through video chat with students across Ivy League universities
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div className="md:col-span-2">
+              <div className="mb-6">
+                <h1 className="text-3xl font-bold text-ivy">Match with Ivy League Students</h1>
+                <p className="text-muted-foreground mt-2">
+                  Connect through video chat with students across Ivy League universities
+                </p>
+              </div>
 
-            <Card className="glass border-0 shadow-lg overflow-hidden">
-              <CardContent className="p-8">
-                <div className="text-center space-y-6">
-                  <div className="w-32 h-32 mx-auto rounded-full bg-ivy/10 flex items-center justify-center">
-                    <div className="w-28 h-28 rounded-full bg-ivy/20 flex items-center justify-center">
-                      <div className="w-24 h-24 rounded-full bg-ivy/30 flex items-center justify-center">
-                        {isMatching ? (
-                          <div className="w-20 h-20 rounded-full bg-ivy flex items-center justify-center animate-pulse-slow">
-                            <span className="text-white font-medium">{matchCounter}%</span>
-                          </div>
-                        ) : (
-                          <div className="w-20 h-20 rounded-full bg-ivy flex items-center justify-center">
-                            <span className="text-white font-medium">Ready</span>
-                          </div>
-                        )}
+              <Card className="glass border-0 shadow-lg overflow-hidden">
+                <CardContent className="p-8">
+                  <div className="text-center space-y-6">
+                    <div className="w-32 h-32 mx-auto rounded-full bg-ivy/10 flex items-center justify-center">
+                      <div className="w-28 h-28 rounded-full bg-ivy/20 flex items-center justify-center">
+                        <div className="w-24 h-24 rounded-full bg-ivy/30 flex items-center justify-center">
+                          {isMatching ? (
+                            <div className="w-20 h-20 rounded-full bg-ivy flex items-center justify-center animate-pulse-slow">
+                              <span className="text-white font-medium">{matchCounter}%</span>
+                            </div>
+                          ) : (
+                            <div className="w-20 h-20 rounded-full bg-ivy flex items-center justify-center">
+                              <span className="text-white font-medium">Ready</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-medium">
-                      {isMatching ? "Finding a match..." : "Ready to Connect?"}
-                    </h3>
-                    <p className="text-gray-500 max-w-md mx-auto">
-                      {isMatching 
-                        ? "We're looking for another student who's online right now. This won't take long."
-                        : "Click the button below to join the queue and get matched with another Ivy League student for a video chat."}
-                    </p>
-                  </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-medium">
+                        {isMatching ? "Finding a match..." : "Ready to Connect?"}
+                      </h3>
+                      <p className="text-gray-500 max-w-md mx-auto">
+                        {isMatching 
+                          ? "We're looking for another student who's online right now. This won't take long."
+                          : noActiveUsers
+                            ? "No users are currently online. Invite your friends to join!"
+                            : "Click the button below to join the queue and get matched with another Ivy League student for a video chat."}
+                      </p>
+                    </div>
 
-                  <div className="pt-4">
-                    {isMatching ? (
-                      <Button 
-                        variant="outline" 
-                        onClick={cancelMatching} 
-                        className="min-w-[150px]"
-                      >
-                        Cancel
-                      </Button>
-                    ) : (
-                      <Button 
-                        className="bg-ivy hover:bg-ivy-dark min-w-[150px]"
-                        onClick={startMatching}
-                      >
-                        Start Matching
-                      </Button>
-                    )}
-                  </div>
+                    <div className="pt-4">
+                      {isMatching ? (
+                        <Button 
+                          variant="outline" 
+                          onClick={cancelMatching} 
+                          className="min-w-[150px]"
+                        >
+                          Cancel
+                        </Button>
+                      ) : (
+                        <div className="space-y-3">
+                          <Button 
+                            className="bg-ivy hover:bg-ivy-dark min-w-[150px]"
+                            onClick={startMatching}
+                            disabled={noActiveUsers}
+                          >
+                            Start Matching
+                          </Button>
+                          
+                          {noActiveUsers && (
+                            <div className="flex justify-center">
+                              <Button 
+                                variant="outline" 
+                                onClick={() => setIsShareOpen(true)} 
+                                size="sm"
+                              >
+                                Invite Friends
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
-                  <div className="border-t pt-6 mt-6">
-                    <h4 className="font-medium mb-4">Matching Guidelines</h4>
-                    <ul className="text-sm text-gray-600 space-y-2 text-left max-w-md mx-auto">
-                      <li className="flex items-start">
-                        <div className="rounded-full bg-green-100 p-1 mr-3 mt-0.5">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-ivy" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <span>Be respectful and courteous to your match</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="rounded-full bg-green-100 p-1 mr-3 mt-0.5">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-ivy" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <span>No inappropriate content or behavior</span>
-                      </li>
-                      <li className="flex items-start">
-                        <div className="rounded-full bg-green-100 p-1 mr-3 mt-0.5">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-ivy" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <span>Use the 'Report' feature for any concerns</span>
-                      </li>
-                    </ul>
+                    <div className="border-t pt-6 mt-6">
+                      <h4 className="font-medium mb-4">Matching Guidelines</h4>
+                      <ul className="text-sm text-gray-600 space-y-2 text-left max-w-md mx-auto">
+                        <li className="flex items-start">
+                          <div className="rounded-full bg-green-100 p-1 mr-3 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-ivy" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <span>Be respectful and courteous to your match</span>
+                        </li>
+                        <li className="flex items-start">
+                          <div className="rounded-full bg-green-100 p-1 mr-3 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-ivy" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <span>No inappropriate content or behavior</span>
+                        </li>
+                        <li className="flex items-start">
+                          <div className="rounded-full bg-green-100 p-1 mr-3 mt-0.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-ivy" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <span>Use the 'Report' feature for any concerns</span>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div>
+              <OnlineUsers 
+                onlineUsers={onlineUsers}
+                currentUserId={user?.id}
+                refreshOnlineUsers={() => user && fetchOnlineUsers(user.id)}
+                isLoading={loadingUsers}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -435,6 +482,8 @@ const Match = () => {
           reportedUserId={matchedUser.user_id}
         />
       )}
+      
+      <Share isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} />
     </MainLayout>
   );
 };

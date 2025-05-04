@@ -14,7 +14,15 @@ import Network from "./pages/Network";
 import Settings from "./pages/Settings";
 import ReportForm from "./components/moderation/ReportForm";
 
-const queryClient = new QueryClient();
+// Create a new QueryClient instance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

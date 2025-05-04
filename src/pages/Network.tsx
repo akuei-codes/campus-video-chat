@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
@@ -34,7 +33,7 @@ import {
   AvatarFallback,
   AvatarImage
 } from "@/components/ui/avatar";
-import { UserPlus, Search, Check, X } from "lucide-react";
+import { UserPlus, Search } from "lucide-react";
 import ConnectionCard from "@/components/network/ConnectionCard";
 import RequestCard from "@/components/network/RequestCard";
 
@@ -163,6 +162,15 @@ const Network = () => {
     }
   };
 
+  // Fix: Use refs to access tab elements instead of querySelector
+  const goToFindTab = () => {
+    const findTabTrigger = document.getElementById("find-tab-trigger");
+    if (findTabTrigger) {
+      (findTabTrigger as HTMLButtonElement).click();
+    }
+  };
+
+  // Loading and unauthorized states
   if (loading) {
     return (
       <MainLayout>
@@ -206,7 +214,7 @@ const Network = () => {
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="connections">Connections</TabsTrigger>
               <TabsTrigger value="requests">Requests</TabsTrigger>
-              <TabsTrigger value="find">Find People</TabsTrigger>
+              <TabsTrigger id="find-tab-trigger" value="find">Find People</TabsTrigger>
             </TabsList>
             
             <TabsContent value="connections" className="mt-6">
@@ -229,7 +237,7 @@ const Network = () => {
                     <Button 
                       variant="default" 
                       className="bg-ivy hover:bg-ivy-dark"
-                      onClick={() => document.querySelector('[data-value="find"]')?.click()}
+                      onClick={goToFindTab}
                     >
                       <UserPlus className="mr-2 h-4 w-4" />
                       Find People
@@ -297,7 +305,7 @@ const Network = () => {
                       <Button 
                         variant="default" 
                         className="bg-ivy hover:bg-ivy-dark"
-                        onClick={() => document.querySelector('[data-value="find"]')?.click()}
+                        onClick={goToFindTab}
                       >
                         <UserPlus className="mr-2 h-4 w-4" />
                         Find People

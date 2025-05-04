@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Profile, User } from '../types';
 
@@ -8,6 +7,7 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Keep existing authentication functions (signInWithGoogle, signOut, getCurrentUser)
 export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -35,6 +35,7 @@ export async function getCurrentUser(): Promise<User | null> {
   return data.user as User;
 }
 
+// Keep existing profile functions (getProfile, createProfile, updateProfile, uploadProfilePhoto)
 export async function getProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from('profiles')
@@ -84,7 +85,7 @@ export async function uploadProfilePhoto(userId: string, file: File, index: numb
   return data.publicUrl;
 }
 
-// New network functions
+// Keep existing network functions (getConnections, getIncomingFriendRequests, getSentFriendRequests, sendFriendRequest, respondToFriendRequest)
 export async function getConnections(profileId: string): Promise<Profile[]> {
   // Get all connections where the user is either user1 or user2
   const { data: connections, error } = await supabase
@@ -201,6 +202,54 @@ export async function searchProfiles(query: string, excludeIds: string[] = []): 
   return data as Profile[] || [];
 }
 
+// Add new function to get online users
+export async function getOnlineUsers(currentUserId: string): Promise<Profile[]> {
+  // In a real implementation, we would query the presence table
+  // For this demo, we'll simulate by returning some users
+  
+  // This would query users with 'online' status excluding the current user
+  // const { data, error } = await supabase
+  //   .from('presence')
+  //   .select('user_id')
+  //   .eq('status', 'online')
+  //   .neq('user_id', currentUserId);
+    
+  // For demo purposes, return some sample data
+  
+  // Simulate a database delay
+  await new Promise(resolve => setTimeout(resolve, 600));
+  
+  // For demo purposes, randomly decide if there are online users
+  const hasOnlineUsers = Math.random() > 0.3; // 70% chance to have online users
+  
+  if (!hasOnlineUsers) {
+    return [];
+  }
+  
+  // Generate 1-4 random online users
+  const numUsers = Math.floor(Math.random() * 4) + 1;
+  const onlineUserProfiles = [];
+  
+  const universities = ["Harvard", "Yale", "Princeton", "Columbia", "Brown", "Dartmouth", "UPenn", "Cornell"];
+  const majors = ["Computer Science", "Economics", "Mathematics", "Physics", "Political Science", "Biology", "Engineering", "Literature"];
+  
+  for (let i = 0; i < numUsers; i++) {
+    onlineUserProfiles.push({
+      id: `online-${i}`,
+      user_id: `online-user-${i}`,
+      full_name: `Online User ${i+1}`,
+      university: `${universities[Math.floor(Math.random() * universities.length)]} University`,
+      major: majors[Math.floor(Math.random() * majors.length)],
+      graduation_year: `202${Math.floor(Math.random() * 5) + 3}`,
+      avatar_url: `https://i.pravatar.cc/300?img=${Math.floor(Math.random() * 70)}`,
+      gender: Math.random() > 0.5 ? "Male" : "Female"
+    });
+  }
+  
+  return onlineUserProfiles as Profile[];
+}
+
+// Keep existing presence functions (updatePresenceStatus)
 export async function updatePresenceStatus(userId: string, status: 'online' | 'matching' | 'in_call' | 'idle') {
   const { error } = await supabase
     .from('presence')
@@ -214,6 +263,7 @@ export async function updatePresenceStatus(userId: string, status: 'online' | 'm
   return true;
 }
 
+// Keep existing video room functions (createVideoRoom, endVideoRoom)
 export async function createVideoRoom(user1Id: string, user2Id: string) {
   const roomToken = Math.random().toString(36).substring(2, 15) + 
                    Math.random().toString(36).substring(2, 15);
@@ -244,6 +294,7 @@ export async function endVideoRoom(roomId: string) {
   return true;
 }
 
+// Keep existing report function (submitReport)
 export async function submitReport(reportData: {
   reporter_id: string;
   reported_user_id: string;
