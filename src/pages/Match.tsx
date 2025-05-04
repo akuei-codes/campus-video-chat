@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
@@ -12,13 +11,13 @@ import {
   createVideoRoom,
   getOnlineUsers
 } from "@/lib/supabase";
-import { User, Profile } from "@/types";
+import { User, Profile, MatchFilters } from "@/types";
 import { toast } from "sonner";
 import { Flag, Video, X } from "lucide-react";
 import ReportForm from "@/components/moderation/ReportForm";
 import { OnlineUsers } from "@/components/network/OnlineUsers";
 import { Share } from "@/components/network/Share";
-import FilterOptions, { MatchFilters } from "@/components/match/FilterOptions";
+import FilterOptions from "@/components/match/FilterOptions";
 
 const Match = () => {
   const location = useLocation();

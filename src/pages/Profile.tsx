@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import { getCurrentUser, getProfile } from "@/lib/supabase";
+import { getCurrentUser, getProfile, updatePresenceStatus } from "@/lib/supabase";
 import MainLayout from "@/components/layout/MainLayout";
 import ProfileForm from "@/components/profile/ProfileForm";
 import ProfileView from "@/components/profile/ProfileView";
@@ -27,6 +26,9 @@ const Profile = () => {
         setUser(userData);
         const profileData = await getProfile(userData.id);
         setProfile(profileData);
+        
+        // Update online status
+        await updatePresenceStatus(userData.id, 'online');
         
         // If no profile exists yet, automatically set to edit mode
         if (!profileData) {
