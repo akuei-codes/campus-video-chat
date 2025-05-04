@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Video, VideoOff, Mic, MicOff, PhoneCall } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, PhoneCall, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { VideoCall, createVideoCallConnection } from "@/lib/webrtc";
 
@@ -12,6 +12,7 @@ interface VideoChatProps {
   remoteUserName: string;
   isInitiator: boolean;
   onEndCall: () => void;
+  onSkipMatch: () => void;
 }
 
 const VideoChat: React.FC<VideoChatProps> = ({
@@ -21,6 +22,7 @@ const VideoChat: React.FC<VideoChatProps> = ({
   remoteUserName,
   isInitiator,
   onEndCall,
+  onSkipMatch,
 }) => {
   const [connectionState, setConnectionState] = useState<RTCPeerConnectionState | null>(null);
   const [videoEnabled, setVideoEnabled] = useState<boolean>(true);
@@ -106,10 +108,19 @@ const VideoChat: React.FC<VideoChatProps> = ({
     onEndCall();
   };
 
+  const handleSkipMatch = () => {
+    if (videoCallRef.current) {
+      videoCallRef.current.close();
+      videoCallRef.current = null;
+    }
+    toast.info(`Skipping match with ${remoteUserName}. Looking for another match...`);
+    onSkipMatch();
+  };
+
   return (
-    <div className="flex flex-col w-full h-full">
-      {/* Main video display area */}
-      <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center">
+    <div className="flex flex-col w-full h-full gap-3">
+      {/* Remote video (top row) */}
+      <div className="relative flex-grow bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center">
         {isConnecting && (
           <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
             <div className="animate-pulse flex flex-col items-center">
@@ -126,27 +137,27 @@ const VideoChat: React.FC<VideoChatProps> = ({
           playsInline
           className="w-full h-full object-cover"
         />
+      </div>
+      
+      {/* Local video (bottom row) */}
+      <div className="relative h-32 bg-gray-800 rounded-md overflow-hidden border-2 border-white">
+        <video 
+          ref={localVideoRef}
+          autoPlay 
+          playsInline 
+          muted 
+          className="w-full h-full object-cover"
+        />
         
-        {/* Self video view */}
-        <div className="absolute bottom-4 right-4 w-1/4 max-w-[180px] aspect-video bg-gray-800 rounded-md overflow-hidden border-2 border-white">
-          <video 
-            ref={localVideoRef}
-            autoPlay 
-            playsInline 
-            muted 
-            className="w-full h-full object-cover"
-          />
-          
-          {!videoEnabled && (
-            <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center">
-              <VideoOff className="w-6 h-6 text-white/70" />
-            </div>
-          )}
-        </div>
+        {!videoEnabled && (
+          <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center">
+            <VideoOff className="w-6 h-6 text-white/70" />
+          </div>
+        )}
       </div>
       
       {/* Video call controls */}
-      <div className="flex justify-center gap-4 mt-6">
+      <div className="flex justify-center gap-3 mt-3">
         <Button 
           variant="outline" 
           size="icon" 
@@ -157,22 +168,31 @@ const VideoChat: React.FC<VideoChatProps> = ({
         </Button>
         
         <Button 
-          variant="destructive" 
-          size="lg"
-          onClick={handleEndCall}
-          className="rounded-full px-8"
-        >
-          <PhoneCall className="mr-2 h-5 w-5" />
-          End Call
-        </Button>
-        
-        <Button 
           variant="outline" 
           size="icon" 
           className={`rounded-full w-12 h-12 ${!videoEnabled ? 'bg-red-600 text-white border-red-600 hover:bg-red-700 hover:text-white' : ''}`}
           onClick={handleToggleVideo}
         >
           {videoEnabled ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+        </Button>
+        
+        <Button 
+          variant="destructive" 
+          size="icon"
+          onClick={handleEndCall}
+          className="rounded-full w-12 h-12"
+        >
+          <PhoneCall className="h-5 w-5" />
+        </Button>
+        
+        <Button 
+          variant="secondary" 
+          size="icon"
+          onClick={handleSkipMatch}
+          className="rounded-full w-12 h-12"
+          title="Skip to next match"
+        >
+          <SkipForward className="h-5 w-5" />
         </Button>
       </div>
     </div>

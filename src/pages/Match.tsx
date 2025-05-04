@@ -246,6 +246,27 @@ const Match = () => {
     toast.info("Call ended");
   };
   
+  const skipMatch = async () => {
+    // End the current call first
+    setInCall(false);
+    setMatchedUser(null);
+    setCurrentRoomId("");
+    
+    // Start searching for a new match
+    setIsMatching(true);
+    setMatchCounter(0);
+    
+    try {
+      if (user) {
+        await updatePresenceStatus(user.id, 'matching');
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+    }
+    
+    toast.info("Looking for a new match...");
+  };
+  
   const openReportForm = () => {
     if (!matchedUser) return;
     setIsReportOpen(true);
@@ -293,15 +314,16 @@ const Match = () => {
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                {/* Replace placeholder with real VideoChat component */}
+                {/* Use the updated VideoChat component with skip functionality */}
                 {user && matchedUser && currentRoomId && (
                   <VideoChat
                     roomId={currentRoomId}
                     localUserId={user.id}
                     remoteUserId={matchedUser.user_id}
                     remoteUserName={matchedUser.full_name}
-                    isInitiator={user.id < matchedUser.user_id} // Deterministic initiator based on user IDs
+                    isInitiator={user.id < matchedUser.user_id} 
                     onEndCall={endCall}
+                    onSkipMatch={skipMatch}
                   />
                 )}
                 
