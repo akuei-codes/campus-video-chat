@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import AuthForm from '@/components/auth/AuthForm';
@@ -36,7 +35,7 @@ const Login = () => {
   }
 
   if (user) {
-    return <Navigate to="/profile" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return (
