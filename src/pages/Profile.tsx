@@ -32,8 +32,8 @@ const Profile = () => {
         // Update online status
         await updatePresenceStatus(userData.id, 'online');
         
-        // If no profile exists yet, automatically set to edit mode
-        if (!profileData) {
+        // If no profile exists or profile is incomplete, automatically set to edit mode
+        if (!profileData || !profileData.university || profileData.university === '') {
           setIsEditMode(true);
         } else if (location.state?.editMode) {
           // If redirected with editMode state, set to edit mode
@@ -95,12 +95,12 @@ const Profile = () => {
           <div className="mb-8 animate-fade-in">
             <h1 className="text-3xl font-bold text-ivy">
               {isEditMode 
-                ? (profile ? "Edit Your Profile" : "Create Your Profile")
+                ? (profile && profile.university ? "Edit Your Profile" : "Complete Your Profile")
                 : "Your Profile"}
             </h1>
             <p className="text-muted-foreground mt-2">
               {isEditMode
-                ? (profile
+                ? (profile && profile.university
                   ? "Update your information to personalize your IvyTV experience."
                   : "Complete your profile to start connecting with other Ivy League students.")
                 : "Your personal profile information visible to other Ivy League students."}

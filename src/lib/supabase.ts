@@ -22,14 +22,6 @@ export async function signInWithGoogle() {
   
   if (error) throw error;
 
-  // Set online status after successful login
-  if (data) {
-    const session = await supabase.auth.getSession();
-    if (session?.data?.session?.user) {
-      await updatePresenceStatus(session.data.session.user.id, 'online');
-    }
-  }
-
   return data;
 }
 
@@ -47,6 +39,36 @@ export async function signOut() {
 export async function getCurrentUser(): Promise<User | null> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
+  
+  // Check if user already has a profile
+  const profile = await getProfile(data.user.id);
+  
+  // If no profile exists, create a basic one with available user metadata
+  if (!profile) {
+    try {
+      const { user_metadata } = data.user;
+      
+      const basicProfile = {
+        user_id: data.user.id,
+        full_name: user_metadata?.full_name || user_metadata?.name || '',
+        avatar_url: user_metadata?.avatar_url || '',
+        // Set minimum required fields with placeholder values
+        university: '',
+        major: '',
+        graduation_year: new Date().getFullYear().toString(),
+        bio: '',
+        gender: 'Prefer not to say',
+        interests: []
+      };
+      
+      // Only create the basic profile if we have at least the name
+      if (basicProfile.full_name) {
+        await createProfile(basicProfile);
+      }
+    } catch (error) {
+      console.error("Error creating basic profile:", error);
+    }
+  }
   
   // Update presence status to online
   await updatePresenceStatus(data.user.id, 'online');

@@ -1,3 +1,4 @@
+
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/layout/MainLayout';
@@ -13,6 +14,7 @@ const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileType | null>(null);
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -28,12 +30,18 @@ const Index = () => {
           const userProfile = await getProfile(currentUser.id);
           setProfile(userProfile);
           
-          // Show a toast notification if the user is newly logged in and has no profile
-          if (!userProfile) {
+          // Check if profile is incomplete (missing required fields)
+          const isIncomplete = !userProfile || 
+                              !userProfile.university || 
+                              !userProfile.major || 
+                              userProfile.university === '';
+          
+          setProfileIncomplete(isIncomplete);
+          
+          // Show a toast notification if the profile is incomplete
+          if (isIncomplete) {
             toast({
-              title: "Complete Your Profile",
               description: "Please complete your profile to unlock all features.",
-              variant: "default",
               action: (
                 <Link to="/profile">
                   <Button variant="outline" className="border-ivy text-ivy">Complete Now</Button>
@@ -63,9 +71,9 @@ const Index = () => {
   return (
     <MainLayout>
       {/* Profile Completion Alert */}
-      {isLoggedIn && user && !profile && !loading && (
+      {isLoggedIn && profileIncomplete && !loading && (
         <div className="container mx-auto px-4 mt-6">
-          <Alert variant="warning" className="bg-amber-50 border-amber-200">
+          <Alert variant="default" className="bg-amber-50 border-amber-200">
             <AlertCircle className="h-5 w-5 text-amber-600" />
             <AlertTitle className="text-amber-800">Complete your profile</AlertTitle>
             <AlertDescription className="text-amber-700">
