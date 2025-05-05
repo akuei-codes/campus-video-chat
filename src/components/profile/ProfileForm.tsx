@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,13 +37,15 @@ interface ProfileFormProps {
 const ProfileForm = ({ user, onComplete }: ProfileFormProps) => {
   const [loading, setLoading] = useState(false);
   const [existingProfile, setExistingProfile] = useState<Profile | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(user.user_metadata?.avatar_url);
+  // Get avatar URL from user metadata - handle both avatar_url and picture (from Google)
+  const initialAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(initialAvatar);
   const [photos, setPhotos] = useState<string[]>([]);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      full_name: user.user_metadata?.full_name || "",
+      full_name: user.user_metadata?.full_name || user.user_metadata?.name || "",
       university: "",
       major: "",
       graduation_year: new Date().getFullYear().toString(),
@@ -60,14 +61,17 @@ const ProfileForm = ({ user, onComplete }: ProfileFormProps) => {
         const profile = await getProfile(user.id);
         if (profile) {
           setExistingProfile(profile);
-          setAvatarUrl(profile.avatar_url);
+          // Only use profile avatar if it exists, otherwise keep the one from user metadata
+          if (profile.avatar_url) {
+            setAvatarUrl(profile.avatar_url);
+          }
           setPhotos(profile.additional_photos || []);
           
           form.reset({
             full_name: profile.full_name,
-            university: profile.university,
-            major: profile.major,
-            graduation_year: profile.graduation_year,
+            university: profile.university || "",
+            major: profile.major || "",
+            graduation_year: profile.graduation_year || new Date().getFullYear().toString(),
             bio: profile.bio || "",
             gender: profile.gender as any || "Prefer not to say",
             interests: profile.interests || [],

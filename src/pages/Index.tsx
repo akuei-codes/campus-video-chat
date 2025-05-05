@@ -41,12 +41,13 @@ const Index = () => {
           // Show a toast notification if the profile is incomplete
           if (isIncomplete) {
             toast({
+              title: "Complete Your Profile",
               description: "Please complete your profile to unlock all features.",
               action: (
                 <Link to="/profile">
                   <Button variant="outline" className="border-ivy text-ivy">Complete Now</Button>
                 </Link>
-              ),
+              )
             });
           }
         }

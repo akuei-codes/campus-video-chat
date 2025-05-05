@@ -35,6 +35,11 @@ const Profile = () => {
         // If no profile exists or profile is incomplete, automatically set to edit mode
         if (!profileData || !profileData.university || profileData.university === '') {
           setIsEditMode(true);
+          // Show toast notification only when in profile page
+          toast.info("Please complete your profile to unlock all features", {
+            duration: 5000,
+            position: "top-center"
+          });
         } else if (location.state?.editMode) {
           // If redirected with editMode state, set to edit mode
           setIsEditMode(true);

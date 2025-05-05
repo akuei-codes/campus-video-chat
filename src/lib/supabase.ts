@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { Profile, User, MatchFilters } from '../types';
 
@@ -41,17 +42,26 @@ export async function getCurrentUser(): Promise<User | null> {
   if (error || !data.user) return null;
   
   // Check if user already has a profile
-  const profile = await getProfile(data.user.id);
+  let profile = await getProfile(data.user.id);
   
   // If no profile exists, create a basic one with available user metadata
   if (!profile) {
     try {
       const { user_metadata } = data.user;
       
+      // Get avatar URL from user metadata - properly handle Google picture URL
+      let avatarUrl = '';
+      if (user_metadata?.avatar_url) {
+        avatarUrl = user_metadata.avatar_url;
+      } else if (user_metadata?.picture) {
+        // Google OAuth often stores picture URL in 'picture' field
+        avatarUrl = user_metadata.picture;
+      }
+      
       const basicProfile = {
         user_id: data.user.id,
         full_name: user_metadata?.full_name || user_metadata?.name || '',
-        avatar_url: user_metadata?.avatar_url || '',
+        avatar_url: avatarUrl,
         // Set minimum required fields with placeholder values
         university: '',
         major: '',
@@ -61,10 +71,12 @@ export async function getCurrentUser(): Promise<User | null> {
         interests: []
       };
       
-      // Only create the basic profile if we have at least the name
-      if (basicProfile.full_name) {
-        await createProfile(basicProfile);
-      }
+      // Create the basic profile regardless of name availability
+      // This ensures we always have a profile to work with for new users
+      await createProfile(basicProfile);
+      
+      // Fetch the newly created profile
+      profile = await getProfile(data.user.id);
     } catch (error) {
       console.error("Error creating basic profile:", error);
     }
