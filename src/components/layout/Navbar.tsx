@@ -1,3 +1,5 @@
+
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -10,13 +12,26 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { User, MessageSquare, UserPlus, Settings, LogOut } from 'lucide-react';
-import { signOut } from '@/lib/supabase';
+import { getCurrentUser, signOut } from '@/lib/supabase';
+import { User as UserType } from '@/types';
 import { toast } from 'sonner';
-import { useAuth } from '@/App';
 
 const Navbar = () => {
-  const { user, setUser } = useAuth();
+  const [user, setUser] = useState<UserType | null>(null);
   const location = useLocation();
+  
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const userData = await getCurrentUser();
+        setUser(userData);
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -64,9 +79,9 @@ const Navbar = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.user_metadata?.avatar_url || user.user_metadata?.picture || ''} alt={user.user_metadata?.full_name || ''} />
+                    <AvatarImage src={user.user_metadata?.avatar_url || ''} alt={user.user_metadata?.full_name || ''} />
                     <AvatarFallback className="bg-ivy text-ivy-foreground">
-                      {user.user_metadata?.full_name?.charAt(0) || user.email?.charAt(0).toUpperCase() || 'U'}
+                      {user.user_metadata?.full_name?.charAt(0) || user.email.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>

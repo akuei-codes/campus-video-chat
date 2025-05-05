@@ -1,68 +1,59 @@
-
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/components/layout/MainLayout';
-import { getProfile } from '@/lib/supabase';
+import { getCurrentUser, getProfile } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
-import { Profile as ProfileType } from '@/types';
+import { User, Profile as ProfileType } from '@/types';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { useAuth } from '@/App';
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileType | null>(null);
-  const [profileIncomplete, setProfileIncomplete] = useState(false);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    const checkProfile = async () => {
+    const checkAuthState = async () => {
       try {
         setLoading(true);
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+        setIsLoggedIn(!!currentUser);
         
-        if (user) {
+        if (currentUser) {
           // Check if user has a profile
-          const userProfile = await getProfile(user.id);
+          const userProfile = await getProfile(currentUser.id);
           setProfile(userProfile);
           
-          // Check if profile is incomplete (missing required fields)
-          const isIncomplete = !userProfile || 
-                              !userProfile.university || 
-                              !userProfile.major || 
-                              userProfile.university === '';
-          
-          setProfileIncomplete(isIncomplete);
-          
-          // Show a toast notification if the profile is incomplete
-          if (isIncomplete) {
-            toast.info("Complete Your Profile", {
+          // Show a toast notification if the user is newly logged in and has no profile
+          if (!userProfile) {
+            toast({
+              title: "Complete Your Profile",
               description: "Please complete your profile to unlock all features.",
+              variant: "default",
               action: (
                 <Link to="/profile">
                   <Button variant="outline" className="border-ivy text-ivy">Complete Now</Button>
                 </Link>
-              )
+              ),
             });
           }
         }
       } catch (error) {
-        console.error("Error checking profile:", error);
+        console.error("Error checking auth state:", error);
       } finally {
         setLoading(false);
       }
     };
     
-    if (user && !authLoading) {
-      checkProfile();
-    } else if (!authLoading) {
-      setLoading(false);
-    }
-  }, [user, authLoading, navigate]);
+    checkAuthState();
+  }, [navigate]);
   
   const handleCTA = (destination: string) => {
-    if (user) {
+    if (isLoggedIn) {
       navigate(destination);
     } else {
       navigate('/login');
@@ -72,9 +63,9 @@ const Index = () => {
   return (
     <MainLayout>
       {/* Profile Completion Alert */}
-      {user && profileIncomplete && !loading && (
+      {isLoggedIn && user && !profile && !loading && (
         <div className="container mx-auto px-4 mt-6">
-          <Alert variant="default" className="bg-amber-50 border-amber-200">
+          <Alert variant="warning" className="bg-amber-50 border-amber-200">
             <AlertCircle className="h-5 w-5 text-amber-600" />
             <AlertTitle className="text-amber-800">Complete your profile</AlertTitle>
             <AlertDescription className="text-amber-700">

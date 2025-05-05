@@ -1,51 +1,61 @@
 
-import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
-import { getProfile, updatePresenceStatus } from "@/lib/supabase";
+import { useState, useEffect } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { getCurrentUser, getProfile, updatePresenceStatus } from "@/lib/supabase";
 import MainLayout from "@/components/layout/MainLayout";
 import ProfileForm from "@/components/profile/ProfileForm";
 import ProfileView from "@/components/profile/ProfileView";
-import { Profile as ProfileType } from "@/types";
+import { User, Profile as ProfileType } from "@/types";
 import { toast } from "sonner";
-import { useAuth } from "@/App";
 
 const Profile = () => {
-  const { user, loading: authLoading } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      
+    const fetchUserAndProfile = async () => {
       try {
         setLoading(true);
-        const profileData = await getProfile(user.id);
+        const userData = await getCurrentUser();
+        
+        if (!userData) {
+          return;
+        }
+        
+        setUser(userData);
+        const profileData = await getProfile(userData.id);
         setProfile(profileData);
         
         // Update online status
-        await updatePresenceStatus(user.id, 'online');
+        await updatePresenceStatus(userData.id, 'online');
         
-        // If no profile exists or profile is incomplete, automatically set to edit mode
-        if (!profileData || !profileData.university || profileData.university === '') {
+        // If no profile exists yet, automatically set to edit mode
+        if (!profileData) {
           setIsEditMode(true);
-          // Show toast notification
-          toast.info("Please complete your profile to unlock all features", {
-            duration: 5000,
-            position: "top-center"
-          });
+        } else if (location.state?.editMode) {
+          // If redirected with editMode state, set to edit mode
+          setIsEditMode(true);
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
-        toast.error("Failed to load profile data");
+        console.error("Error fetching user or profile:", error);
+        toast.error("Failed to load user data");
       } finally {
         setLoading(false);
       }
     };
     
-    fetchProfile();
-  }, [user]);
+    fetchUserAndProfile();
+    
+    // Update presence status to offline when component unmounts
+    return () => {
+      if (user) {
+        updatePresenceStatus(user.id, 'offline').catch(console.error);
+      }
+    };
+  }, [location.state]);
   
   const handleProfileComplete = () => {
     toast.success("Profile saved successfully!");
@@ -64,7 +74,7 @@ const Profile = () => {
     setIsEditMode(true);
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <MainLayout>
         <div className="min-h-[80vh] flex items-center justify-center">
@@ -85,12 +95,12 @@ const Profile = () => {
           <div className="mb-8 animate-fade-in">
             <h1 className="text-3xl font-bold text-ivy">
               {isEditMode 
-                ? (profile && profile.university ? "Edit Your Profile" : "Complete Your Profile")
+                ? (profile ? "Edit Your Profile" : "Create Your Profile")
                 : "Your Profile"}
             </h1>
             <p className="text-muted-foreground mt-2">
               {isEditMode
-                ? (profile && profile.university
+                ? (profile
                   ? "Update your information to personalize your IvyTV experience."
                   : "Complete your profile to start connecting with other Ivy League students.")
                 : "Your personal profile information visible to other Ivy League students."}

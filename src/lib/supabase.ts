@@ -12,7 +12,7 @@ export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/`, // Keep redirecting to home
+      redirectTo: `${window.location.origin}/`, // Changed from /profile to / (home page)
       queryParams: {
         access_type: 'offline',
         prompt: 'consent',
@@ -21,6 +21,14 @@ export async function signInWithGoogle() {
   });
   
   if (error) throw error;
+
+  // Set online status after successful login
+  if (data) {
+    const session = await supabase.auth.getSession();
+    if (session?.data?.session?.user) {
+      await updatePresenceStatus(session.data.session.user.id, 'online');
+    }
+  }
 
   return data;
 }
@@ -36,80 +44,14 @@ export async function signOut() {
   if (error) throw error;
 }
 
-// Keep track of authentication state to prevent infinite redirects
-let authInitialized = false;
-
 export async function getCurrentUser(): Promise<User | null> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
-  
-  // Check if user already has a profile
-  let profile = await getProfile(data.user.id);
-  
-  // If no profile exists, create a basic one with available user metadata
-  if (!profile) {
-    try {
-      const { user_metadata } = data.user;
-      
-      // Get avatar URL from user metadata - handle Google picture URL
-      let avatarUrl = '';
-      if (user_metadata?.avatar_url) {
-        avatarUrl = user_metadata.avatar_url;
-      } else if (user_metadata?.picture) {
-        // Google OAuth often stores picture URL in 'picture' field
-        avatarUrl = user_metadata.picture;
-      }
-      
-      const basicProfile = {
-        user_id: data.user.id,
-        full_name: user_metadata?.full_name || user_metadata?.name || '',
-        avatar_url: avatarUrl,
-        // Set minimum required fields with placeholder values
-        university: '',
-        major: '',
-        graduation_year: new Date().getFullYear().toString(),
-        bio: '',
-        gender: 'Prefer not to say',
-        interests: []
-      };
-      
-      // Create the basic profile
-      await createProfile(basicProfile);
-      
-      // Fetch the newly created profile
-      profile = await getProfile(data.user.id);
-    } catch (error) {
-      console.error("Error creating basic profile:", error);
-    }
-  }
   
   // Update presence status to online
   await updatePresenceStatus(data.user.id, 'online');
   
   return data.user as User;
-}
-
-// Initialize auth listener once
-export function initializeAuthListener(callback: (user: User | null) => void) {
-  if (authInitialized) return;
-  
-  // Set up auth state change listener
-  const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('Auth state changed:', event, session ? 'User session exists' : 'No session');
-    
-    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-      if (session?.user) {
-        // Get full user object with profile
-        const user = await getCurrentUser();
-        callback(user);
-      }
-    } else if (event === 'SIGNED_OUT') {
-      callback(null);
-    }
-  });
-  
-  authInitialized = true;
-  return data;
 }
 
 // Profile functions
