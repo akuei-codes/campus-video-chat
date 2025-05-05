@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Profile, User, MatchFilters } from '../types';
 
@@ -13,7 +12,7 @@ export async function signInWithGoogle() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/`, // Changed from /profile to / (home page)
+      redirectTo: `${window.location.origin}/`, // Keep redirecting to home
       queryParams: {
         access_type: 'offline',
         prompt: 'consent',
@@ -37,6 +36,9 @@ export async function signOut() {
   if (error) throw error;
 }
 
+// Keep track of authentication state to prevent infinite redirects
+let authInitialized = false;
+
 export async function getCurrentUser(): Promise<User | null> {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
@@ -49,7 +51,7 @@ export async function getCurrentUser(): Promise<User | null> {
     try {
       const { user_metadata } = data.user;
       
-      // Get avatar URL from user metadata - properly handle Google picture URL
+      // Get avatar URL from user metadata - handle Google picture URL
       let avatarUrl = '';
       if (user_metadata?.avatar_url) {
         avatarUrl = user_metadata.avatar_url;
@@ -71,8 +73,7 @@ export async function getCurrentUser(): Promise<User | null> {
         interests: []
       };
       
-      // Create the basic profile regardless of name availability
-      // This ensures we always have a profile to work with for new users
+      // Create the basic profile
       await createProfile(basicProfile);
       
       // Fetch the newly created profile
@@ -86,6 +87,29 @@ export async function getCurrentUser(): Promise<User | null> {
   await updatePresenceStatus(data.user.id, 'online');
   
   return data.user as User;
+}
+
+// Initialize auth listener once
+export function initializeAuthListener(callback: (user: User | null) => void) {
+  if (authInitialized) return;
+  
+  // Set up auth state change listener
+  const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('Auth state changed:', event, session ? 'User session exists' : 'No session');
+    
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      if (session?.user) {
+        // Get full user object with profile
+        const user = await getCurrentUser();
+        callback(user);
+      }
+    } else if (event === 'SIGNED_OUT') {
+      callback(null);
+    }
+  });
+  
+  authInitialized = true;
+  return data;
 }
 
 // Profile functions

@@ -1,66 +1,51 @@
 
-import { useState, useEffect } from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { getCurrentUser, getProfile, updatePresenceStatus } from "@/lib/supabase";
+import { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
+import { getProfile, updatePresenceStatus } from "@/lib/supabase";
 import MainLayout from "@/components/layout/MainLayout";
 import ProfileForm from "@/components/profile/ProfileForm";
 import ProfileView from "@/components/profile/ProfileView";
-import { User, Profile as ProfileType } from "@/types";
+import { Profile as ProfileType } from "@/types";
 import { toast } from "sonner";
+import { useAuth } from "@/App";
 
 const Profile = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
-  const location = useLocation();
 
   useEffect(() => {
-    const fetchUserAndProfile = async () => {
+    const fetchProfile = async () => {
+      if (!user) return;
+      
       try {
         setLoading(true);
-        const userData = await getCurrentUser();
-        
-        if (!userData) {
-          return;
-        }
-        
-        setUser(userData);
-        const profileData = await getProfile(userData.id);
+        const profileData = await getProfile(user.id);
         setProfile(profileData);
         
         // Update online status
-        await updatePresenceStatus(userData.id, 'online');
+        await updatePresenceStatus(user.id, 'online');
         
         // If no profile exists or profile is incomplete, automatically set to edit mode
         if (!profileData || !profileData.university || profileData.university === '') {
           setIsEditMode(true);
-          // Show toast notification only when in profile page
+          // Show toast notification
           toast.info("Please complete your profile to unlock all features", {
             duration: 5000,
             position: "top-center"
           });
-        } else if (location.state?.editMode) {
-          // If redirected with editMode state, set to edit mode
-          setIsEditMode(true);
         }
       } catch (error) {
-        console.error("Error fetching user or profile:", error);
-        toast.error("Failed to load user data");
+        console.error("Error fetching profile:", error);
+        toast.error("Failed to load profile data");
       } finally {
         setLoading(false);
       }
     };
     
-    fetchUserAndProfile();
-    
-    // Update presence status to offline when component unmounts
-    return () => {
-      if (user) {
-        updatePresenceStatus(user.id, 'offline').catch(console.error);
-      }
-    };
-  }, [location.state]);
+    fetchProfile();
+  }, [user]);
   
   const handleProfileComplete = () => {
     toast.success("Profile saved successfully!");
@@ -79,7 +64,7 @@ const Profile = () => {
     setIsEditMode(true);
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <MainLayout>
         <div className="min-h-[80vh] flex items-center justify-center">
