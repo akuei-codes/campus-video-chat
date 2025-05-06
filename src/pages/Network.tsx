@@ -10,10 +10,7 @@ import {
   getSentFriendRequests, 
   respondToFriendRequest,
   searchProfiles,
-  sendFriendRequest,
-  notifyUserOfFriendRequest,
-  getUserNotifications,
-  markNotificationAsRead
+  sendFriendRequest
 } from "@/lib/supabase";
 import { User, Profile } from "@/types";
 import { toast } from "sonner";
@@ -52,7 +49,6 @@ const Network = () => {
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [hasUnreadRequests, setHasUnreadRequests] = useState(false);
 
   useEffect(() => {
@@ -80,10 +76,6 @@ const Network = () => {
           
           const sentData = await getSentFriendRequests(profileData.id);
           setSentRequests(sentData);
-          
-          // Load notifications
-          const notificationsData = await getUserNotifications(userData.id);
-          setNotifications(notificationsData);
         }
         
         // Pre-fetch all users for the Find People tab
@@ -98,28 +90,25 @@ const Network = () => {
     
     fetchUserAndProfile();
     
-    // Set up periodic refresh of notifications
-    const notificationInterval = setInterval(() => {
-      if (user?.id) {
-        checkForNewNotifications(user.id);
+    // Check for new requests periodically
+    const requestsInterval = setInterval(() => {
+      if (profile?.id) {
+        checkForNewRequests(profile.id);
       }
     }, 30000); // Check every 30 seconds
     
     return () => {
-      clearInterval(notificationInterval);
+      clearInterval(requestsInterval);
     };
   }, [user?.id]);
 
-  const checkForNewNotifications = async (userId: string) => {
+  const checkForNewRequests = async (profileId: string) => {
     try {
-      const notificationsData = await getUserNotifications(userId);
-      setNotifications(notificationsData);
-      
-      const incomingData = await getIncomingFriendRequests(profile?.id || "");
+      const incomingData = await getIncomingFriendRequests(profileId);
       setIncomingRequests(incomingData);
       setHasUnreadRequests(incomingData.length > 0);
     } catch (error) {
-      console.error("Error checking for notifications:", error);
+      console.error("Error checking for new requests:", error);
     }
   };
 
@@ -153,9 +142,6 @@ const Network = () => {
     try {
       await sendFriendRequest(profile.id, receiverId);
       
-      // Notify the receiver
-      await notifyUserOfFriendRequest(profile.id, receiverId);
-      
       // Update search results to remove this person
       setSearchResults(prev => prev.filter(result => result.id !== receiverId));
       
@@ -170,7 +156,7 @@ const Network = () => {
     }
   };
 
-  const handleAcceptRequest = async (requestId: string, senderId: string) => {
+  const handleAcceptRequest = async (requestId: string) => {
     if (!profile) return;
     
     try {
@@ -183,15 +169,6 @@ const Network = () => {
       const updatedConnections = await getConnections(profile.id);
       setConnections(updatedConnections);
       
-      // Mark related notifications as read
-      const friendRequestNotification = notifications.find(
-        n => n.type === 'friend_request' && n.sender_id === senderId
-      );
-      
-      if (friendRequestNotification) {
-        await markNotificationAsRead(friendRequestNotification.id);
-      }
-      
       toast.success("Friend request accepted");
     } catch (error) {
       console.error("Error accepting friend request:", error);
@@ -199,21 +176,12 @@ const Network = () => {
     }
   };
 
-  const handleRejectRequest = async (requestId: string, senderId: string) => {
+  const handleRejectRequest = async (requestId: string) => {
     try {
       await respondToFriendRequest(requestId, 'rejected');
       
       // Remove request from incoming list
       setIncomingRequests(prev => prev.filter(req => req.id !== requestId));
-      
-      // Mark related notifications as read
-      const friendRequestNotification = notifications.find(
-        n => n.type === 'friend_request' && n.sender_id === senderId
-      );
-      
-      if (friendRequestNotification) {
-        await markNotificationAsRead(friendRequestNotification.id);
-      }
       
       toast.success("Friend request rejected");
     } catch (error) {
@@ -341,8 +309,8 @@ const Network = () => {
                             key={request.id} 
                             request={request} 
                             type="incoming"
-                            onAccept={() => handleAcceptRequest(request.id, request.sender.id)}
-                            onReject={() => handleRejectRequest(request.id, request.sender.id)}
+                            onAccept={() => handleAcceptRequest(request.id)}
+                            onReject={() => handleRejectRequest(request.id)}
                           />
                         ))}
                       </div>
