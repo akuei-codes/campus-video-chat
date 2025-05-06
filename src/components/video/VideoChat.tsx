@@ -20,7 +20,12 @@ const CONVERSATION_STARTERS = [
   "What classes are you taking this semester?",
   "Are you involved in any student organizations?",
   "What's your favorite spot on campus?",
-  "Any exciting research or projects you're working on?"
+  "Any exciting research or projects you're working on?",
+  "What made you choose your current major?",
+  "Do you have any travel plans for the next break?",
+  "What's the best course you've taken so far?",
+  "Any recommendations for good study spots?",
+  "What are you planning to do after graduation?"
 ];
 
 const VideoChat: React.FC<VideoChatProps> = ({
@@ -51,7 +56,7 @@ const VideoChat: React.FC<VideoChatProps> = ({
           const next = prev + 1;
           return next < CONVERSATION_STARTERS.length ? next : 0;
         });
-      }, 5000);
+      }, 7000); // Slightly longer interval for better readability
       
       return () => clearInterval(interval);
     }
@@ -168,85 +173,85 @@ const VideoChat: React.FC<VideoChatProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full h-full gap-4">
-      <div className="flex flex-col gap-4 flex-grow">
-        {/* Remote video (top) */}
-        <div className="relative bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center aspect-video w-full h-2/3">
-          {isConnecting && !permissionDenied && (
-            <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
-              <div className="animate-pulse flex flex-col items-center">
-                <PhoneCall className="w-12 h-12 text-white/50 mb-3" />
-                <p className="text-white text-lg">Connecting to {remoteUserName}...</p>
-                <p className="text-white/70 text-sm mt-2">Please wait</p>
-              </div>
+    <div className="flex flex-col w-full h-full gap-4 relative">
+      {/* Remote video (top) */}
+      <div className="relative bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center h-2/3">
+        {isConnecting && !permissionDenied && (
+          <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
+            <div className="animate-pulse flex flex-col items-center">
+              <PhoneCall className="w-12 h-12 text-white/50 mb-3" />
+              <p className="text-white text-lg">Connecting to {remoteUserName}...</p>
+              <p className="text-white/70 text-sm mt-2">Please wait</p>
             </div>
-          )}
-          
-          {permissionDenied && (
-            <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
-              <div className="flex flex-col items-center text-center">
-                <VideoOff className="w-12 h-12 text-red-400 mb-3" />
-                <p className="text-white text-lg">Camera or microphone access denied</p>
-                <p className="text-white/70 text-sm mt-2 max-w-xs">
-                  Please check your browser permissions and allow access to your camera and microphone
-                </p>
-                <Button 
-                  variant="secondary" 
-                  className="mt-4"
-                  onClick={retryConnection}
-                >
-                  Try Again
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          <video 
-            ref={remoteVideoRef}
-            autoPlay 
-            playsInline
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-sm rounded">
-            {remoteUserName}
           </div>
-          
-          {/* Animated conversation starter */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentStarterIndex}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
-              className="absolute bottom-4 left-4 right-4 bg-black/70 text-white p-3 rounded-lg"
-            >
-              <p className="text-sm font-medium">💬 {CONVERSATION_STARTERS[currentStarterIndex]}</p>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+        )}
         
-        {/* Local video (bottom) */}
-        <div className="relative bg-gray-800 rounded-lg overflow-hidden aspect-video w-full h-1/3">
-          <video 
-            ref={localVideoRef}
-            autoPlay 
-            playsInline 
-            muted 
-            className="w-full h-full object-cover"
-          />
-          
-          {!videoEnabled && (
-            <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center">
-              <VideoOff className="w-10 h-10 text-white/70" />
+        {permissionDenied && (
+          <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
+            <div className="flex flex-col items-center text-center">
+              <VideoOff className="w-12 h-12 text-red-400 mb-3" />
+              <p className="text-white text-lg">Camera or microphone access denied</p>
+              <p className="text-white/70 text-sm mt-2 max-w-xs">
+                Please check your browser permissions and allow access to your camera and microphone
+              </p>
+              <Button 
+                variant="secondary" 
+                className="mt-4"
+                onClick={retryConnection}
+              >
+                Try Again
+              </Button>
             </div>
-          )}
-          
-          <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-sm rounded">
-            You
           </div>
+        )}
+        
+        <video 
+          ref={remoteVideoRef}
+          autoPlay 
+          playsInline
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-sm rounded">
+          {remoteUserName}
         </div>
       </div>
+      
+      {/* Local video (bottom) */}
+      <div className="relative bg-gray-800 rounded-lg overflow-hidden h-1/3">
+        <video 
+          ref={localVideoRef}
+          autoPlay 
+          playsInline 
+          muted 
+          className="w-full h-full object-cover"
+        />
+        
+        {!videoEnabled && (
+          <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center">
+            <VideoOff className="w-10 h-10 text-white/70" />
+          </div>
+        )}
+        
+        <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-sm rounded">
+          You
+        </div>
+      </div>
+      
+      {/* Animated conversation starter */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentStarterIndex}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.5 }}
+          className="absolute top-4 left-0 right-0 mx-auto w-5/6 max-w-md z-20"
+        >
+          <div className="bg-black/70 text-white p-3 rounded-lg shadow-lg backdrop-blur-sm">
+            <p className="text-sm font-medium">💬 {CONVERSATION_STARTERS[currentStarterIndex]}</p>
+          </div>
+        </motion.div>
+      </AnimatePresence>
       
       {/* Video call controls */}
       <div className="flex justify-center gap-3 mt-2">

@@ -231,7 +231,7 @@ export async function searchProfiles(query: string = "", excludeIds: string[] = 
   return data as Profile[] || [];
 }
 
-// Get online users with filtering - improved query
+// Get online users with filtering - fixed query
 export async function getOnlineUsers(currentUserId: string, filters?: MatchFilters): Promise<Profile[]> {
   try {
     console.log("Fetching online users, excluding:", currentUserId);
@@ -294,6 +294,76 @@ export async function getOnlineUsers(currentUserId: string, filters?: MatchFilte
   } catch (error) {
     console.error("Error in getOnlineUsers:", error);
     return [];
+  }
+}
+
+// Add a new search function for user discovery
+export async function searchAllProfiles(query: string = "", currentUserId: string): Promise<Profile[]> {
+  try {
+    // Basic query to get all profiles except the current user
+    let searchQuery = supabase
+      .from('profiles')
+      .select('*')
+      .neq('user_id', currentUserId);
+    
+    // Add search filter if provided
+    if (query && query.trim() !== '') {
+      searchQuery = searchQuery.or(`full_name.ilike.%${query}%,university.ilike.%${query}%,major.ilike.%${query}%`);
+    }
+    
+    const { data, error } = await searchQuery;
+    
+    if (error) {
+      console.error("Error searching profiles:", error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error("Error in searchAllProfiles:", error);
+    return [];
+  }
+}
+
+// Add a function to check if two users are connected
+export async function checkConnection(userId1: string, userId2: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('connections')
+      .select('*')
+      .or(`and(user1_id.eq.${userId1},user2_id.eq.${userId2}),and(user1_id.eq.${userId2},user2_id.eq.${userId1})`)
+      .single();
+    
+    if (error) {
+      // If no connection found, this will error but that's expected
+      return false;
+    }
+    
+    return !!data;
+  } catch (error) {
+    console.error("Error checking connection:", error);
+    return false;
+  }
+}
+
+// Add a function to get unread notifications count
+export async function getUnreadNotificationsCount(userId: string): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('read', false);
+    
+    if (error) {
+      console.error("Error getting unread notifications count:", error);
+      return 0;
+    }
+    
+    return count || 0;
+  } catch (error) {
+    console.error("Error in getUnreadNotificationsCount:", error);
+    return 0;
   }
 }
 
