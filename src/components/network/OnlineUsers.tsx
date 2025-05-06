@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ export const OnlineUsers = ({
   useEffect(() => {
     // If onlineUsers are provided as props, use them
     if (providedOnlineUsers) {
+      console.log("OnlineUsers component received users:", providedOnlineUsers);
       setOnlineUsers(providedOnlineUsers);
       return;
     }
@@ -49,7 +51,9 @@ export const OnlineUsers = ({
     
     try {
       setLoading(true);
+      console.log("OnlineUsers component fetching users for:", currentUserId);
       const users = await getOnlineUsers(currentUserId, filters);
+      console.log("OnlineUsers component fetched users:", users);
       setOnlineUsers(users);
     } catch (error) {
       console.error('Error fetching online users:', error);
@@ -95,7 +99,7 @@ export const OnlineUsers = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <CardTitle>Online Users</CardTitle>
-            <Badge variant="outline" className="bg-green-100 text-green-800">
+            <Badge variant="outline" className={`${onlineUsers.length > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
               {onlineUsers.length}
             </Badge>
           </div>
@@ -110,7 +114,11 @@ export const OnlineUsers = ({
         </div>
       </CardHeader>
       <CardContent>
-        {onlineUsers.length > 0 ? (
+        {isLoading || loading ? (
+          <div className="py-4 text-center">
+            <div className="animate-pulse text-sm text-muted-foreground">Loading online users...</div>
+          </div>
+        ) : onlineUsers.length > 0 ? (
           <div className="space-y-4">
             {onlineUsers.map((user) => (
               <div key={user.id} className="flex items-center justify-between">

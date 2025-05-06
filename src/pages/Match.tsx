@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
@@ -39,6 +40,7 @@ const Match = () => {
   const [noActiveUsers, setNoActiveUsers] = useState(false);
   const [filters, setFilters] = useState<MatchFilters>({});
   const [currentRoomId, setCurrentRoomId] = useState<string>("");
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     const fetchUserAndProfile = async () => {
@@ -53,6 +55,9 @@ const Match = () => {
         setUser(userData);
         const profileData = await getProfile(userData.id);
         setProfile(profileData);
+        
+        // Update online status
+        await updatePresenceStatus(userData.id, 'online');
         
         // If we have a target user from Network page, simulate a direct call
         if (targetUserId && profileData) {
@@ -83,19 +88,34 @@ const Match = () => {
     };
     
     fetchUserAndProfile();
-  }, [targetUserId, roomId]);
+    
+    // Setup periodic refresh of online users
+    const refreshInterval = setInterval(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, 30000); // Refresh every 30 seconds
+    
+    // Update presence status to offline when component unmounts
+    return () => {
+      clearInterval(refreshInterval);
+      if (user) {
+        updatePresenceStatus(user.id, 'offline').catch(console.error);
+      }
+    };
+  }, [location.state, targetUserId, roomId]);
 
   // Watch for filter changes and refresh users when they change
   useEffect(() => {
     if (user?.id) {
       fetchOnlineUsers(user.id);
     }
-  }, [filters, user?.id]);
+  }, [filters, user?.id, refreshTrigger]);
 
   const fetchOnlineUsers = async (currentUserId: string) => {
     try {
       setLoadingUsers(true);
+      console.log("Fetching online users for userId:", currentUserId);
       const users = await getOnlineUsers(currentUserId, filters);
+      console.log("Fetched online users:", users);
       setOnlineUsers(users);
       setNoActiveUsers(users.length === 0);
     } catch (error) {
@@ -113,8 +133,8 @@ const Match = () => {
       interval = window.setInterval(() => {
         setMatchCounter(prev => {
           if (prev >= 100) {
-            // If no online users, show no active users message
-            if (noActiveUsers) {
+            // Check if we have online users to match with
+            if (onlineUsers.length === 0) {
               setIsMatching(false);
               toast.error("No active users found. Invite your friends to join!");
               setIsShareOpen(true);
@@ -135,7 +155,7 @@ const Match = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isMatching, noActiveUsers, onlineUsers]);
+  }, [isMatching, onlineUsers]);
   
   // Update presence status based on app state
   useEffect(() => {
@@ -172,20 +192,27 @@ const Match = () => {
       return;
     }
     
-    if (noActiveUsers) {
-      toast.warning("No users are currently online. Invite your friends to join!");
-      setIsShareOpen(true);
-      return;
-    }
-    
-    setIsMatching(true);
-    setMatchCounter(0);
-    toast.info("Looking for a match...");
-    
-    try {
-      await updatePresenceStatus(user!.id, 'matching');
-    } catch (error) {
-      console.error("Error updating status:", error);
+    // Force a refresh of online users before starting the matching process
+    if (user) {
+      try {
+        const latestUsers = await getOnlineUsers(user.id, filters);
+        setOnlineUsers(latestUsers);
+        
+        if (latestUsers.length === 0) {
+          toast.warning("No users are currently online. Invite your friends to join!");
+          setIsShareOpen(true);
+          return;
+        }
+        
+        setIsMatching(true);
+        setMatchCounter(0);
+        toast.info("Looking for a match...");
+        
+        await updatePresenceStatus(user.id, 'matching');
+      } catch (error) {
+        console.error("Error starting matching:", error);
+        toast.error("There was a problem connecting to the matching service");
+      }
     }
   };
 
@@ -208,6 +235,7 @@ const Match = () => {
     try {
       // Use one of the online users that match our filters
       if (onlineUsers.length > 0) {
+        // Random selection from available online users
         const matchUser = onlineUsers[Math.floor(Math.random() * onlineUsers.length)];
         setMatchedUser(matchUser);
         
@@ -270,6 +298,12 @@ const Match = () => {
   const openReportForm = () => {
     if (!matchedUser) return;
     setIsReportOpen(true);
+  };
+
+  const refreshOnlineUsersList = () => {
+    if (user) {
+      fetchOnlineUsers(user.id);
+    }
   };
 
   if (loading) {
@@ -408,9 +442,9 @@ const Match = () => {
               </div>
 
               <FilterOptions 
-                filters={filters} 
                 onFilterChange={handleFilterChange}
                 onResetFilters={resetFilters}
+                currentFilters={filters}
               />
 
               <Card className="glass border-0 shadow-lg overflow-hidden">
@@ -441,7 +475,7 @@ const Match = () => {
                           ? "We're looking for another student who's online right now. This won't take long."
                           : noActiveUsers
                             ? "No users are currently online. Invite your friends to join!"
-                            : "Click the button below to join the queue and get matched with another Ivy League student for a video chat."}
+                            : `Click the button below to join the queue and get matched with another Ivy League student for a video chat. ${onlineUsers.length} students online now!`}
                       </p>
                       
                       {/* Show filter summary if filters are applied */}
@@ -546,7 +580,7 @@ const Match = () => {
               <OnlineUsers 
                 onlineUsers={onlineUsers}
                 currentUserId={user?.id}
-                refreshOnlineUsers={() => user && fetchOnlineUsers(user.id)}
+                refreshOnlineUsers={refreshOnlineUsersList}
                 isLoading={loadingUsers}
               />
             </div>

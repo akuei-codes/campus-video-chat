@@ -1,201 +1,199 @@
 
-import { useState } from "react";
+import React, { useState } from "react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
-import { UNIVERSITIES } from "@/types";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import { Filter, X } from "lucide-react";
 import { MatchFilters } from "@/types";
-import { X, Filter } from "lucide-react";
 
-interface FilterOptionsProps {
-  onApplyFilters: (filters: MatchFilters) => void;
-  defaultFilters?: MatchFilters;
+export interface FilterOptionsProps {
+  onFilterChange: (filters: MatchFilters) => void;
+  onResetFilters: () => void;
+  currentFilters?: MatchFilters;
 }
 
-// Majors options
-const MAJORS = [
-  "Computer Science",
-  "Engineering",
-  "Business",
-  "Medicine",
-  "Law",
-  "Arts",
-  "Humanities",
-  "Sciences",
-  "Math",
-  "Other"
-];
+const FilterOptions = ({ 
+  onFilterChange, 
+  onResetFilters,
+  currentFilters = {} 
+}: FilterOptionsProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [university, setUniversity] = useState(currentFilters.university || "");
+  const [gender, setGender] = useState(currentFilters.gender || "");
+  const [major, setMajor] = useState(currentFilters.major || "");
+  const [graduationYear, setGraduationYear] = useState(currentFilters.graduationYear || "");
 
-// Generate an array of graduation years from current year - 4 to current year + 4
-const currentYear = new Date().getFullYear();
-const GRADUATION_YEARS = Array.from(
-  { length: 9 },
-  (_, i) => (currentYear - 4 + i).toString()
-);
+  const universities = [
+    "Harvard University",
+    "Yale University",
+    "Princeton University",
+    "Columbia University",
+    "Brown University",
+    "Dartmouth College",
+    "University of Pennsylvania",
+    "Cornell University",
+  ];
 
-export default function FilterOptions({ onApplyFilters, defaultFilters }: FilterOptionsProps) {
-  const [filters, setFilters] = useState<MatchFilters>(
-    defaultFilters || {
-      university: "",
-      gender: "",
-      major: "",
-      graduationYear: "",
-      maxDistance: 100,
-    }
+  const majors = [
+    "Computer Science",
+    "Economics",
+    "Biology",
+    "Engineering",
+    "Political Science",
+    "Psychology",
+    "History",
+    "Mathematics",
+    "English",
+    "Chemistry",
+  ];
+
+  const graduationYears = Array.from({ length: 6 }, (_, i) => 
+    (new Date().getFullYear() + i).toString()
   );
 
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleChange = (field: keyof MatchFilters, value: string | number) => {
-    setFilters(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleApply = () => {
-    onApplyFilters(filters);
+  const applyFilters = () => {
+    const filters: MatchFilters = {};
+    
+    if (university) filters.university = university;
+    if (gender) filters.gender = gender;
+    if (major) filters.major = major;
+    if (graduationYear) filters.graduationYear = graduationYear;
+    
+    onFilterChange(filters);
     setIsOpen(false);
   };
 
-  const handleReset = () => {
-    const resetFilters: MatchFilters = {
-      university: "",
-      gender: "",
-      major: "",
-      graduationYear: "",
-      maxDistance: 100,
-    };
-    setFilters(resetFilters);
-    onApplyFilters(resetFilters);
+  const resetFilters = () => {
+    setUniversity("");
+    setGender("");
+    setMajor("");
+    setGraduationYear("");
+    onResetFilters();
+    setIsOpen(false);
   };
 
+  const hasActiveFilters = Object.values(currentFilters || {}).some(Boolean);
+
   return (
-    <div className="relative">
-      <Button
-        variant="outline" 
-        className="flex items-center gap-2"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <Filter size={16} />
-        <span>Filters</span>
-      </Button>
-
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-md shadow-lg z-50 p-4 border animate-fade-in">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-medium">Filter Settings</h3>
-            <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
-              <X size={18} />
-            </Button>
+    <div className="mb-6">
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className={`gap-2 ${hasActiveFilters ? 'bg-ivy/10 border-ivy text-ivy' : ''}`}
+          >
+            <Filter className="h-4 w-4" />
+            {hasActiveFilters ? "Filters Active" : "Filter Options"}
+            {hasActiveFilters && (
+              <span className="rounded-full bg-ivy text-white w-5 h-5 flex items-center justify-center text-xs">
+                {Object.values(currentFilters || {}).filter(Boolean).length}
+              </span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-4" align="start">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium">Filter Students</h3>
+              {hasActiveFilters && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={resetFilters}
+                  className="h-8 px-2 text-xs"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear All
+                </Button>
+              )}
+            </div>
+            
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-sm">University</label>
+                <Select value={university} onValueChange={setUniversity}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any university" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any university</SelectItem>
+                    {universities.map((uni) => (
+                      <SelectItem key={uni} value={uni}>{uni}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-sm">Gender</label>
+                <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any gender</SelectItem>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Non-binary">Non-binary</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-sm">Major</label>
+                <Select value={major} onValueChange={setMajor}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any major" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any major</SelectItem>
+                    {majors.map((m) => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-sm">Class of</label>
+                <Select value={graduationYear} onValueChange={setGraduationYear}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Any year</SelectItem>
+                    {graduationYears.map((year) => (
+                      <SelectItem key={year} value={year}>Class of {year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end pt-2">
+              <Button onClick={applyFilters} className="bg-ivy hover:bg-ivy-dark">
+                Apply Filters
+              </Button>
+            </div>
           </div>
-
-          <Accordion type="multiple" className="w-full">
-            <AccordionItem value="university">
-              <AccordionTrigger className="py-3 text-sm">
-                University
-              </AccordionTrigger>
-              <AccordionContent>
-                <RadioGroup
-                  value={filters.university}
-                  onValueChange={(value) => handleChange("university", value)}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="" id="univ-any" />
-                    <Label htmlFor="univ-any">Any</Label>
-                  </div>
-                  {UNIVERSITIES.map((university) => (
-                    <div key={university} className="flex items-center space-x-2">
-                      <RadioGroupItem value={university} id={`univ-${university}`} />
-                      <Label htmlFor={`univ-${university}`}>{university}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="gender">
-              <AccordionTrigger className="py-3 text-sm">Gender</AccordionTrigger>
-              <AccordionContent>
-                <RadioGroup
-                  value={filters.gender}
-                  onValueChange={(value) => handleChange("gender", value)}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="" id="gender-any" />
-                    <Label htmlFor="gender-any">Any</Label>
-                  </div>
-                  {["Male", "Female", "Non-binary", "Prefer not to say"].map((gender) => (
-                    <div key={gender} className="flex items-center space-x-2">
-                      <RadioGroupItem value={gender} id={`gender-${gender}`} />
-                      <Label htmlFor={`gender-${gender}`}>{gender}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="major">
-              <AccordionTrigger className="py-3 text-sm">Major</AccordionTrigger>
-              <AccordionContent>
-                <RadioGroup
-                  value={filters.major}
-                  onValueChange={(value) => handleChange("major", value)}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="" id="major-any" />
-                    <Label htmlFor="major-any">Any</Label>
-                  </div>
-                  {MAJORS.map((major) => (
-                    <div key={major} className="flex items-center space-x-2">
-                      <RadioGroupItem value={major} id={`major-${major}`} />
-                      <Label htmlFor={`major-${major}`}>{major}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="graduationYear">
-              <AccordionTrigger className="py-3 text-sm">
-                Graduation Year
-              </AccordionTrigger>
-              <AccordionContent>
-                <RadioGroup
-                  value={filters.graduationYear}
-                  onValueChange={(value) => handleChange("graduationYear", value)}
-                  className="space-y-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="" id="year-any" />
-                    <Label htmlFor="year-any">Any</Label>
-                  </div>
-                  {GRADUATION_YEARS.map((year) => (
-                    <div key={year} className="flex items-center space-x-2">
-                      <RadioGroupItem value={year} id={`year-${year}`} />
-                      <Label htmlFor={`year-${year}`}>{year}</Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-
-          <div className="flex justify-between mt-6 pt-4 border-t">
-            <Button variant="outline" size="sm" onClick={handleReset}>
-              Reset All
-            </Button>
-            <Button size="sm" onClick={handleApply} className="bg-ivy hover:bg-ivy-dark">
-              Apply Filters
-            </Button>
-          </div>
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
-}
+};
+
+export default FilterOptions;

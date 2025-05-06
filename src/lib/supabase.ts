@@ -221,53 +221,73 @@ export async function searchProfiles(query: string, excludeIds: string[] = []): 
   return data as Profile[] || [];
 }
 
-// Get online users with filtering
+// Get online users with filtering - fixing the query to properly fetch online users
 export async function getOnlineUsers(currentUserId: string, filters?: MatchFilters): Promise<Profile[]> {
-  // Get users with 'online' or 'matching' status excluding the current user
-  let query = supabase
-    .from('presence')
-    .select('user_id')
-    .in('status', ['online', 'matching'])
-    .neq('user_id', currentUserId);
-  
-  const { data: onlineUserIds, error } = await query;
-  
-  if (error || !onlineUserIds || onlineUserIds.length === 0) {
+  try {
+    console.log("Fetching online users, excluding:", currentUserId);
+    
+    // Directly query the profiles with presence status
+    let query = supabase
+      .from('profiles')
+      .select(`
+        *,
+        presence:user_id(status, last_seen)
+      `)
+      .neq('user_id', currentUserId); // Exclude current user
+    
+    // Apply filters if provided
+    if (filters) {
+      if (filters.university) {
+        query = query.eq('university', filters.university);
+      }
+      
+      if (filters.gender) {
+        query = query.eq('gender', filters.gender);
+      }
+      
+      if (filters.major) {
+        query = query.eq('major', filters.major);
+      }
+      
+      if (filters.graduationYear) {
+        query = query.eq('graduation_year', filters.graduationYear);
+      }
+    }
+    
+    const { data: profiles, error: profileError } = await query;
+    
+    if (profileError) {
+      console.error("Error fetching profiles:", profileError);
+      return [];
+    }
+    
+    if (!profiles || profiles.length === 0) {
+      console.log("No profiles found with the given filters");
+      return [];
+    }
+    
+    // Filter out users who aren't online (or matching)
+    const onlineProfiles = profiles.filter(profile => {
+      const presenceData = profile.presence;
+      return (
+        presenceData && 
+        Array.isArray(presenceData) && 
+        presenceData.length > 0 && 
+        (presenceData[0].status === 'online' || presenceData[0].status === 'matching')
+      );
+    });
+    
+    console.log(`Found ${onlineProfiles.length} online profiles out of ${profiles.length} total profiles`);
+    
+    // Clean up the profiles to remove the presence data before returning
+    return onlineProfiles.map(profile => {
+      const { presence, ...cleanProfile } = profile;
+      return cleanProfile as Profile;
+    });
+  } catch (error) {
+    console.error("Error in getOnlineUsers:", error);
     return [];
   }
-  
-  // Get profiles for online users
-  let profileQuery = supabase
-    .from('profiles')
-    .select('*')
-    .in('user_id', onlineUserIds.map(u => u.user_id));
-  
-  // Apply filters if provided
-  if (filters) {
-    if (filters.university) {
-      profileQuery = profileQuery.eq('university', filters.university);
-    }
-    
-    if (filters.gender) {
-      profileQuery = profileQuery.eq('gender', filters.gender);
-    }
-    
-    if (filters.major) {
-      profileQuery = profileQuery.eq('major', filters.major);
-    }
-    
-    if (filters.graduationYear) {
-      profileQuery = profileQuery.eq('graduation_year', filters.graduationYear);
-    }
-  }
-  
-  const { data: profiles, error: profileError } = await profileQuery;
-  
-  if (profileError || !profiles) {
-    return [];
-  }
-  
-  return profiles as Profile[];
 }
 
 // Presence functions
