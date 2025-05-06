@@ -28,6 +28,7 @@ const PhotoUpload = ({
 }: PhotoUploadProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [photos, setPhotos] = useState<string[]>(existingPhotos);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   
@@ -45,31 +46,18 @@ const PhotoUpload = ({
         return;
       }
       
-      // Create a preview URL
-      const previewUrl = URL.createObjectURL(file);
-      const updatedPhotos = [...photos, previewUrl];
-      setPhotos(updatedPhotos);
-      onPhotosChange(updatedPhotos);
-      
       // Upload in background
       const url = await uploadProfilePhoto(userId, file, index);
       
       // Update with actual URL once upload is complete
-      const finalPhotos = [...photos];
-      finalPhotos[index] = url; // Replace the preview URL with the actual URL
-      setPhotos(finalPhotos);
-      onPhotosChange(finalPhotos);
+      const updatedPhotos = [...photos, url];
+      setPhotos(updatedPhotos);
+      onPhotosChange(updatedPhotos);
       
       toast.success("Photo uploaded successfully");
     } catch (error) {
       console.error("Error uploading photo:", error);
       toast.error("Failed to upload photo. Please try again.");
-      
-      // Remove the preview if upload failed
-      const updatedPhotos = [...photos];
-      updatedPhotos.pop(); // Remove the last added photo (the one that failed)
-      setPhotos(updatedPhotos);
-      onPhotosChange(updatedPhotos);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -80,14 +68,10 @@ const PhotoUpload = ({
     if (!event.target.files || !event.target.files.length || !onAvatarChange) return;
     
     try {
-      setIsUploading(true);
+      setUploadingAvatar(true);
       const file = event.target.files[0];
       
-      // Create a preview URL
-      const previewUrl = URL.createObjectURL(file);
-      onAvatarChange(previewUrl);
-      
-      // Upload in background
+      // Upload immediately - no preview
       const url = await uploadProfilePhoto(userId, file, 'avatar');
       onAvatarChange(url);
       toast.success("Profile picture updated");
@@ -95,7 +79,7 @@ const PhotoUpload = ({
       console.error("Error uploading avatar:", error);
       toast.error("Failed to update profile picture. Please try again.");
     } finally {
-      setIsUploading(false);
+      setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = '';
     }
   };
@@ -122,9 +106,9 @@ const PhotoUpload = ({
             size="sm"
             type="button"
             onClick={() => avatarInputRef.current?.click()}
-            disabled={isUploading}
+            disabled={isUploading || uploadingAvatar}
           >
-            {avatarUrl ? "Change Profile Picture" : "Add Profile Picture"}
+            {uploadingAvatar ? "Uploading..." : avatarUrl ? "Change Profile Picture" : "Add Profile Picture"}
           </Button>
           <input
             ref={avatarInputRef}
@@ -132,7 +116,7 @@ const PhotoUpload = ({
             className="hidden"
             accept="image/*"
             onChange={handleAvatarSelect}
-            disabled={isUploading}
+            disabled={isUploading || uploadingAvatar}
           />
         </div>
       )}

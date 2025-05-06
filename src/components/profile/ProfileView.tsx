@@ -12,6 +12,11 @@ interface ProfileViewProps {
 }
 
 const ProfileView = ({ profile, onEdit }: ProfileViewProps) => {
+  // Add a cache-busting timestamp to avoid browser caching the old image
+  const avatarUrl = profile.avatar_url ? 
+    `${profile.avatar_url}${profile.avatar_url.includes('?') ? '&' : '?'}t=${Date.now()}` : 
+    "/placeholder.svg";
+
   return (
     <Card className="glass border-0 shadow-lg overflow-hidden animate-fade-in">
       <CardHeader className="relative p-0">
@@ -21,7 +26,7 @@ const ProfileView = ({ profile, onEdit }: ProfileViewProps) => {
         <div className="absolute -bottom-12 left-8">
           <div className="relative h-24 w-24 rounded-full border-4 border-white overflow-hidden">
             <img 
-              src={profile.avatar_url || "/placeholder.svg"} 
+              src={avatarUrl} 
               alt={profile.full_name} 
               className="w-full h-full object-cover" 
             />

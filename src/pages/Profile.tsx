@@ -13,6 +13,7 @@ const Profile = () => {
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Add a refresh key to force re-fetch
   const location = useLocation();
 
   useEffect(() => {
@@ -55,19 +56,13 @@ const Profile = () => {
         updatePresenceStatus(user.id, 'offline').catch(console.error);
       }
     };
-  }, [location.state]);
+  }, [location.state, refreshKey]); // Add refreshKey to the dependency array
   
   const handleProfileComplete = () => {
     toast.success("Profile saved successfully!");
     setIsEditMode(false);
-    // Refresh profile data
-    if (user) {
-      getProfile(user.id)
-        .then(updatedProfile => {
-          setProfile(updatedProfile);
-        })
-        .catch(console.error);
-    }
+    // Refresh profile data by updating the refresh key
+    setRefreshKey(prev => prev + 1);
   };
 
   const handleEditClick = () => {

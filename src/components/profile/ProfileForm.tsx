@@ -81,6 +81,45 @@ const ProfileForm = ({ user, onComplete }: ProfileFormProps) => {
     loadProfile();
   }, [user, form]);
 
+  // Function to handle avatar changes and immediately update the profile
+  const handleAvatarChange = async (newAvatarUrl: string) => {
+    setAvatarUrl(newAvatarUrl);
+    
+    try {
+      // Only update the avatar field if profile already exists
+      if (existingProfile) {
+        await updateProfile({
+          id: existingProfile.id,
+          avatar_url: newAvatarUrl,
+        });
+      } else {
+        // If no profile exists yet, collect the form data and create one
+        const formValues = form.getValues();
+        const isFormValid = await form.trigger();
+        
+        if (isFormValid) {
+          const newProfile = await createProfile({
+            ...formValues,
+            user_id: user.id,
+            avatar_url: newAvatarUrl,
+            additional_photos: photos,
+          });
+          
+          if (newProfile) {
+            setExistingProfile(newProfile);
+          }
+        } else {
+          // Form is incomplete, but we'll still update the avatar
+          // to save on our component state for when the form is submitted later
+          toast.info("Avatar updated, but please complete your profile");
+        }
+      }
+    } catch (error) {
+      console.error("Error updating avatar:", error);
+      toast.error("Failed to update profile picture in the database");
+    }
+  };
+
   const onSubmit = async (data: ProfileFormValues) => {
     setLoading(true);
     try {
@@ -258,7 +297,7 @@ const ProfileForm = ({ user, onComplete }: ProfileFormProps) => {
                     existingPhotos={photos}
                     onPhotosChange={setPhotos}
                     avatarUrl={avatarUrl}
-                    onAvatarChange={setAvatarUrl}
+                    onAvatarChange={handleAvatarChange}
                   />
                 </div>
                 
