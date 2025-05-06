@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
@@ -41,6 +40,7 @@ const Match = () => {
   const [filters, setFilters] = useState<MatchFilters>({});
   const [currentRoomId, setCurrentRoomId] = useState<string>("");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [previousMatches, setPreviousMatches] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchUserAndProfile = async () => {
@@ -92,7 +92,7 @@ const Match = () => {
     // Setup periodic refresh of online users
     const refreshInterval = setInterval(() => {
       setRefreshTrigger(prev => prev + 1);
-    }, 30000); // Refresh every 30 seconds
+    }, 15000); // Refresh every 15 seconds (more frequent refresh)
     
     // Update presence status to offline when component unmounts
     return () => {
@@ -145,9 +145,9 @@ const Match = () => {
             handleMatchFound();
             return 0;
           }
-          return prev + 5;
+          return prev + 4; // Make progress faster
         });
-      }, 200);
+      }, 150); // Speed up the animation a bit
     } else if (interval) {
       clearInterval(interval);
     }
@@ -235,9 +235,27 @@ const Match = () => {
     try {
       // Use one of the online users that match our filters
       if (onlineUsers.length > 0) {
+        // Filter out users we've matched with recently
+        const availableUsers = onlineUsers.filter(
+          user => !previousMatches.includes(user.user_id)
+        );
+        
+        // If no available users (all were previously matched), reset and use all online users
+        const usersPool = availableUsers.length > 0 ? availableUsers : onlineUsers;
+        
         // Random selection from available online users
-        const matchUser = onlineUsers[Math.floor(Math.random() * onlineUsers.length)];
+        const matchUser = usersPool[Math.floor(Math.random() * usersPool.length)];
         setMatchedUser(matchUser);
+        
+        // Add to previous matches to prevent repeat matches
+        setPreviousMatches(prev => {
+          const updated = [...prev, matchUser.user_id];
+          // Keep only the last 5 matches
+          if (updated.length > 5) {
+            return updated.slice(updated.length - 5);
+          }
+          return updated;
+        });
         
         // Create a room in the database
         if (user) {
@@ -413,16 +431,6 @@ const Match = () => {
                               </div>
                             </div>
                           )}
-                        </div>
-                        
-                        <div className="mt-6 border-t pt-4">
-                          <h4 className="text-sm font-medium mb-2">Conversation Starters:</h4>
-                          <ul className="space-y-2 text-sm text-muted-foreground">
-                            <li>• What classes are you taking this semester?</li>
-                            <li>• Are you involved in any student organizations?</li>
-                            <li>• What's your favorite spot on campus?</li>
-                            <li>• Any exciting research or projects you're working on?</li>
-                          </ul>
                         </div>
                       </div>
                     </div>

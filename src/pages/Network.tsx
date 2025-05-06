@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import MainLayout from "@/components/layout/MainLayout";
@@ -9,7 +10,10 @@ import {
   getSentFriendRequests, 
   respondToFriendRequest,
   searchProfiles,
-  sendFriendRequest 
+  sendFriendRequest,
+  notifyUserOfFriendRequest,
+  getUserNotifications,
+  markNotificationAsRead
 } from "@/lib/supabase";
 import { User, Profile } from "@/types";
 import { toast } from "sonner";
@@ -33,7 +37,8 @@ import {
   AvatarFallback,
   AvatarImage
 } from "@/components/ui/avatar";
-import { UserPlus, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { UserPlus, Search, Bell } from "lucide-react";
 import ConnectionCard from "@/components/network/ConnectionCard";
 import RequestCard from "@/components/network/RequestCard";
 
@@ -47,6 +52,8 @@ const Network = () => {
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [hasUnreadRequests, setHasUnreadRequests] = useState(false);
 
   useEffect(() => {
     const fetchUserAndProfile = async () => {
@@ -69,10 +76,18 @@ const Network = () => {
           
           const incomingData = await getIncomingFriendRequests(profileData.id);
           setIncomingRequests(incomingData);
+          setHasUnreadRequests(incomingData.length > 0);
           
           const sentData = await getSentFriendRequests(profileData.id);
           setSentRequests(sentData);
+          
+          // Load notifications
+          const notificationsData = await getUserNotifications(userData.id);
+          setNotifications(notificationsData);
         }
+        
+        // Pre-fetch all users for the Find People tab
+        handleSearch();
       } catch (error) {
         console.error("Error fetching network data:", error);
         toast.error("Failed to load network data");
@@ -82,10 +97,34 @@ const Network = () => {
     };
     
     fetchUserAndProfile();
-  }, []);
+    
+    // Set up periodic refresh of notifications
+    const notificationInterval = setInterval(() => {
+      if (user?.id) {
+        checkForNewNotifications(user.id);
+      }
+    }, 30000); // Check every 30 seconds
+    
+    return () => {
+      clearInterval(notificationInterval);
+    };
+  }, [user?.id]);
+
+  const checkForNewNotifications = async (userId: string) => {
+    try {
+      const notificationsData = await getUserNotifications(userId);
+      setNotifications(notificationsData);
+      
+      const incomingData = await getIncomingFriendRequests(profile?.id || "");
+      setIncomingRequests(incomingData);
+      setHasUnreadRequests(incomingData.length > 0);
+    } catch (error) {
+      console.error("Error checking for notifications:", error);
+    }
+  };
 
   const handleSearch = async () => {
-    if (!profile || !searchQuery.trim()) return;
+    if (!profile) return;
     
     try {
       setSearching(true);
@@ -114,6 +153,9 @@ const Network = () => {
     try {
       await sendFriendRequest(profile.id, receiverId);
       
+      // Notify the receiver
+      await notifyUserOfFriendRequest(profile.id, receiverId);
+      
       // Update search results to remove this person
       setSearchResults(prev => prev.filter(result => result.id !== receiverId));
       
@@ -141,6 +183,15 @@ const Network = () => {
       const updatedConnections = await getConnections(profile.id);
       setConnections(updatedConnections);
       
+      // Mark related notifications as read
+      const friendRequestNotification = notifications.find(
+        n => n.type === 'friend_request' && n.sender_id === senderId
+      );
+      
+      if (friendRequestNotification) {
+        await markNotificationAsRead(friendRequestNotification.id);
+      }
+      
       toast.success("Friend request accepted");
     } catch (error) {
       console.error("Error accepting friend request:", error);
@@ -148,12 +199,21 @@ const Network = () => {
     }
   };
 
-  const handleRejectRequest = async (requestId: string) => {
+  const handleRejectRequest = async (requestId: string, senderId: string) => {
     try {
       await respondToFriendRequest(requestId, 'rejected');
       
       // Remove request from incoming list
       setIncomingRequests(prev => prev.filter(req => req.id !== requestId));
+      
+      // Mark related notifications as read
+      const friendRequestNotification = notifications.find(
+        n => n.type === 'friend_request' && n.sender_id === senderId
+      );
+      
+      if (friendRequestNotification) {
+        await markNotificationAsRead(friendRequestNotification.id);
+      }
       
       toast.success("Friend request rejected");
     } catch (error) {
@@ -203,17 +263,34 @@ const Network = () => {
     <MainLayout>
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-ivy">My Network</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage your Ivy League connections
-            </p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-ivy">My Network</h1>
+              <p className="text-muted-foreground mt-2">
+                Manage your Ivy League connections
+              </p>
+            </div>
+            
+            {/* Notifications indicator */}
+            {hasUnreadRequests && (
+              <div className="relative">
+                <Bell className="h-6 w-6 text-ivy" />
+                <Badge className="absolute -top-2 -right-2 bg-red-500">
+                  {incomingRequests.length}
+                </Badge>
+              </div>
+            )}
           </div>
 
           <Tabs defaultValue="connections" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="connections">Connections</TabsTrigger>
-              <TabsTrigger value="requests">Requests</TabsTrigger>
+              <TabsTrigger value="requests" className="relative">
+                Requests
+                {hasUnreadRequests && (
+                  <Badge className="ml-2 bg-red-500">{incomingRequests.length}</Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger id="find-tab-trigger" value="find">Find People</TabsTrigger>
             </TabsList>
             
@@ -265,7 +342,7 @@ const Network = () => {
                             request={request} 
                             type="incoming"
                             onAccept={() => handleAcceptRequest(request.id, request.sender.id)}
-                            onReject={() => handleRejectRequest(request.id)}
+                            onReject={() => handleRejectRequest(request.id, request.sender.id)}
                           />
                         ))}
                       </div>
@@ -336,7 +413,7 @@ const Network = () => {
                     />
                     <Button 
                       onClick={handleSearch} 
-                      disabled={searching || !searchQuery.trim()}
+                      disabled={searching}
                     >
                       <Search className="mr-2 h-4 w-4" />
                       Search
@@ -376,11 +453,11 @@ const Network = () => {
                             </div>
                           ))}
                         </div>
-                      ) : searchQuery && !searching ? (
+                      ) : (
                         <div className="py-10 text-center">
-                          <p className="text-muted-foreground">No results found</p>
+                          <p className="text-muted-foreground">No results found. Try a different search term or check back later.</p>
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   )}
                 </CardContent>

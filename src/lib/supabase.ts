@@ -209,81 +209,88 @@ export async function respondToFriendRequest(requestId: string, status: 'accepte
   return data;
 }
 
-export async function searchProfiles(query: string, excludeIds: string[] = []): Promise<Profile[]> {
-  // Search for profiles by name or university
-  const { data, error } = await supabase
+export async function searchProfiles(query: string = "", excludeIds: string[] = []): Promise<Profile[]> {
+  // Updated to fetch all profiles when query is empty
+  let queryBuilder = supabase
     .from('profiles')
-    .select('*')
-    .or(`full_name.ilike.%${query}%,university.ilike.%${query}%`)
-    .not('id', 'in', `(${excludeIds.join(',')})`);
-    
+    .select('*');
+  
+  // Only apply search filter if query is provided
+  if (query.trim()) {
+    queryBuilder = queryBuilder.or(`full_name.ilike.%${query}%,university.ilike.%${query}%`);
+  }
+  
+  // Exclude specified IDs
+  if (excludeIds.length > 0) {
+    queryBuilder = queryBuilder.not('id', 'in', `(${excludeIds.join(',')})`);
+  }
+  
+  const { data, error } = await queryBuilder;
+  
   if (error) throw error;
   return data as Profile[] || [];
 }
 
-// Get online users with filtering - fixing the query to properly fetch online users
+// Get online users with filtering - improved query
 export async function getOnlineUsers(currentUserId: string, filters?: MatchFilters): Promise<Profile[]> {
   try {
     console.log("Fetching online users, excluding:", currentUserId);
     
-    // Directly query the profiles with presence status
-    let query = supabase
+    // Query presence table first to get online user IDs
+    const { data: presenceData, error: presenceError } = await supabase
+      .from('presence')
+      .select('user_id, status, last_seen')
+      .or('status.eq.online,status.eq.matching')
+      .neq('user_id', currentUserId);
+    
+    if (presenceError) {
+      console.error("Error fetching presence data:", presenceError);
+      return [];
+    }
+    
+    if (!presenceData || presenceData.length === 0) {
+      console.log("No online users found");
+      return [];
+    }
+    
+    // Extract user IDs
+    const onlineUserIds = presenceData.map(p => p.user_id);
+    console.log("Found online user IDs:", onlineUserIds);
+    
+    // Then query profiles for these online users
+    let profileQuery = supabase
       .from('profiles')
-      .select(`
-        *,
-        presence:user_id(status, last_seen)
-      `)
-      .neq('user_id', currentUserId); // Exclude current user
+      .select('*')
+      .in('user_id', onlineUserIds);
     
     // Apply filters if provided
     if (filters) {
       if (filters.university) {
-        query = query.eq('university', filters.university);
+        profileQuery = profileQuery.eq('university', filters.university);
       }
       
       if (filters.gender) {
-        query = query.eq('gender', filters.gender);
+        profileQuery = profileQuery.eq('gender', filters.gender);
       }
       
       if (filters.major) {
-        query = query.eq('major', filters.major);
+        profileQuery = profileQuery.eq('major', filters.major);
       }
       
       if (filters.graduationYear) {
-        query = query.eq('graduation_year', filters.graduationYear);
+        profileQuery = profileQuery.eq('graduation_year', filters.graduationYear);
       }
     }
     
-    const { data: profiles, error: profileError } = await query;
+    const { data: profilesData, error: profileError } = await profileQuery;
     
     if (profileError) {
       console.error("Error fetching profiles:", profileError);
       return [];
     }
     
-    if (!profiles || profiles.length === 0) {
-      console.log("No profiles found with the given filters");
-      return [];
-    }
-    
-    // Filter out users who aren't online (or matching)
-    const onlineProfiles = profiles.filter(profile => {
-      const presenceData = profile.presence;
-      return (
-        presenceData && 
-        Array.isArray(presenceData) && 
-        presenceData.length > 0 && 
-        (presenceData[0].status === 'online' || presenceData[0].status === 'matching')
-      );
-    });
-    
-    console.log(`Found ${onlineProfiles.length} online profiles out of ${profiles.length} total profiles`);
-    
-    // Clean up the profiles to remove the presence data before returning
-    return onlineProfiles.map(profile => {
-      const { presence, ...cleanProfile } = profile;
-      return cleanProfile as Profile;
-    });
+    console.log(`Found ${profilesData?.length || 0} online profiles matching criteria`);
+    return profilesData || [];
   } catch (error) {
     console.error("Error in getOnlineUsers:", error);
     return [];
@@ -418,4 +425,54 @@ export async function getUnreadMessageCount(userId: string) {
     
   if (error) throw error;
   return data?.length || 0;
+}
+
+// New function to notify users of friend requests
+export async function notifyUserOfFriendRequest(senderId: string, receiverId: string) {
+  const { data: senderProfile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('user_id', senderId)
+    .single();
+  
+  // Create a notification
+  const { error } = await supabase
+    .from('notifications')
+    .insert({
+      user_id: receiverId,
+      type: 'friend_request',
+      message: `${senderProfile?.full_name} sent you a friend request`,
+      sender_id: senderId,
+      read: false
+    });
+  
+  if (error) console.error("Error creating notification:", error);
+  return !error;
+}
+
+// Function to check for notifications
+export async function getUserNotifications(userId: string) {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error("Error fetching notifications:", error);
+    return [];
+  }
+  
+  return data || [];
+}
+
+// Function to mark notifications as read
+export async function markNotificationAsRead(notificationId: string) {
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('id', notificationId);
+    
+  if (error) console.error("Error marking notification as read:", error);
+  return !error;
 }
