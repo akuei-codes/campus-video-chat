@@ -9,7 +9,8 @@ import {
   getProfile, 
   updatePresenceStatus,
   createVideoRoom,
-  getOnlineUsers
+  getOnlineUsers,
+  notifyUserOfMatch
 } from "@/lib/supabase";
 import { User, Profile, MatchFilters } from "@/types";
 import { toast } from "sonner";
@@ -262,6 +263,9 @@ const Match = () => {
           const room = await createVideoRoom(user.id, matchUser.user_id);
           setCurrentRoomId(room.id);
           await updatePresenceStatus(user.id, 'in_call');
+          
+          // Send match notification to the matched user
+          await notifyUserOfMatch(user.id, matchUser.user_id, room.id);
         }
         
         toast.success(`Match found! Starting video call with ${matchUser.full_name}...`);
@@ -356,7 +360,7 @@ const Match = () => {
     <MainLayout>
       <div className="container mx-auto py-8 px-4">
         {inCall ? (
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-6xl mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-ivy">Video Chat</h1>
               <p className="text-muted-foreground mt-2">
@@ -364,9 +368,9 @@ const Match = () => {
               </p>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                {/* Use the updated VideoChat component with skip functionality */}
+            <div className="grid grid-cols-1 gap-6">
+              <div className="w-full">
+                {/* Full width video chat component */}
                 {user && matchedUser && currentRoomId && (
                   <VideoChat
                     roomId={currentRoomId}
@@ -390,52 +394,6 @@ const Match = () => {
                     Report
                   </Button>
                 </div>
-              </div>
-              
-              <div>
-                <Card className="glass border-0 shadow-lg overflow-hidden">
-                  <CardContent className="p-0">
-                    <div>
-                      <div className="relative aspect-square">
-                        <img 
-                          src={matchedUser?.avatar_url || '/placeholder.svg'} 
-                          alt={matchedUser?.full_name} 
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="p-4">
-                        <h3 className="text-xl font-medium">{matchedUser?.full_name}</h3>
-                        <p className="text-muted-foreground">{matchedUser?.university}</p>
-                        <div className="mt-4 space-y-2">
-                          <div>
-                            <span className="text-sm font-medium">Major:</span>
-                            <span className="text-sm text-muted-foreground ml-2">{matchedUser?.major}</span>
-                          </div>
-                          <div>
-                            <span className="text-sm font-medium">Class of:</span>
-                            <span className="text-sm text-muted-foreground ml-2">{matchedUser?.graduation_year}</span>
-                          </div>
-                          {matchedUser?.gender && (
-                            <div>
-                              <span className="text-sm font-medium">Gender:</span>
-                              <span className="text-sm text-muted-foreground ml-2">{matchedUser?.gender}</span>
-                            </div>
-                          )}
-                          {matchedUser?.interests && matchedUser.interests.length > 0 && (
-                            <div>
-                              <span className="text-sm font-medium">Interests:</span>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {matchedUser.interests.map((interest, i) => (
-                                  <Badge key={i} variant="secondary" className="text-xs">{interest}</Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             </div>
           </div>

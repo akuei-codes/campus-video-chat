@@ -501,3 +501,95 @@ export async function getUnreadNotificationsCount(userId: string) {
   console.log(`[Info] Attempted to get unread notification count for user ${userId}, but notifications table doesn't exist`);
   return 0;
 }
+
+// Add a new function to notify users about matches
+export async function notifyUserOfMatch(
+  matcherId: string,
+  matchedUserId: string, 
+  roomId: string
+) {
+  try {
+    // Get the matcher's profile for the notification
+    const { data: matcherProfile } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url')
+      .eq('user_id', matcherId)
+      .single();
+    
+    if (!matcherProfile) {
+      console.error('Matcher profile not found');
+      return false;
+    }
+    
+    // Store the match notification in presence table's metadata
+    // This is a workaround since we don't have a notifications table
+    const { error } = await supabase
+      .from('presence')
+      .update({
+        status: 'matching',
+        last_seen: new Date().toISOString(),
+        metadata: {
+          match_notification: {
+            matcher_id: matcherId,
+            matcher_name: matcherProfile.full_name,
+            matcher_avatar: matcherProfile.avatar_url,
+            room_id: roomId,
+            created_at: new Date().toISOString()
+          }
+        }
+      })
+      .eq('user_id', matchedUserId);
+    
+    if (error) {
+      console.error('Error sending match notification:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in notifyUserOfMatch:', error);
+    return false;
+  }
+}
+
+// Add function to check if user has pending match
+export async function checkForPendingMatch(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('presence')
+      .select('metadata')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error || !data || !data.metadata || !data.metadata.match_notification) {
+      return null;
+    }
+    
+    return data.metadata.match_notification;
+  } catch (error) {
+    console.error('Error checking for pending match:', error);
+    return null;
+  }
+}
+
+// Add function to clear pending match notification
+export async function clearPendingMatch(userId: string) {
+  try {
+    const { error } = await supabase
+      .from('presence')
+      .update({
+        metadata: {}
+      })
+      .eq('user_id', userId);
+    
+    if (error) {
+      console.error('Error clearing pending match:', error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in clearPendingMatch:', error);
+    return false;
+  }
+}

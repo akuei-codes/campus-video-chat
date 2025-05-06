@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   preview: {
-    allowedHosts: ["ivytv.onrender.com"]
+    host: "ivytv.onrender.com"
   },
   plugins: [
     react(),

@@ -47,6 +47,25 @@ const VideoChat: React.FC<VideoChatProps> = ({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const videoCallRef = useRef<VideoCall | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Calculate optimal height based on viewport
+  useEffect(() => {
+    const setOptimalHeight = () => {
+      if (containerRef.current) {
+        const vh = window.innerHeight;
+        const optimalHeight = Math.min(vh - 160, 600); // Leave room for headers, controls
+        containerRef.current.style.height = `${optimalHeight}px`;
+      }
+    };
+
+    setOptimalHeight();
+    window.addEventListener('resize', setOptimalHeight);
+    
+    return () => {
+      window.removeEventListener('resize', setOptimalHeight);
+    };
+  }, []);
   
   // Set up animated conversation starters
   useEffect(() => {
@@ -173,67 +192,69 @@ const VideoChat: React.FC<VideoChatProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full h-full gap-4 relative">
-      {/* Remote video (top) */}
-      <div className="relative bg-gray-900 rounded-lg overflow-hidden flex items-center justify-center h-2/3">
-        {isConnecting && !permissionDenied && (
-          <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
-            <div className="animate-pulse flex flex-col items-center">
-              <PhoneCall className="w-12 h-12 text-white/50 mb-3" />
-              <p className="text-white text-lg">Connecting to {remoteUserName}...</p>
-              <p className="text-white/70 text-sm mt-2">Please wait</p>
+    <div className="flex flex-col w-full h-full gap-4" ref={containerRef}>
+      <div className="flex flex-1 gap-4 w-full h-full">
+        {/* Remote video (left) */}
+        <div className="relative bg-gray-900 rounded-lg overflow-hidden flex-1 flex items-center justify-center h-full">
+          {isConnecting && !permissionDenied && (
+            <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
+              <div className="animate-pulse flex flex-col items-center">
+                <PhoneCall className="w-12 h-12 text-white/50 mb-3" />
+                <p className="text-white text-lg">Connecting to {remoteUserName}...</p>
+                <p className="text-white/70 text-sm mt-2">Please wait</p>
+              </div>
             </div>
-          </div>
-        )}
-        
-        {permissionDenied && (
-          <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
-            <div className="flex flex-col items-center text-center">
-              <VideoOff className="w-12 h-12 text-red-400 mb-3" />
-              <p className="text-white text-lg">Camera or microphone access denied</p>
-              <p className="text-white/70 text-sm mt-2 max-w-xs">
-                Please check your browser permissions and allow access to your camera and microphone
-              </p>
-              <Button 
-                variant="secondary" 
-                className="mt-4"
-                onClick={retryConnection}
-              >
-                Try Again
-              </Button>
+          )}
+          
+          {permissionDenied && (
+            <div className="absolute inset-0 bg-gray-800/80 flex flex-col items-center justify-center z-10">
+              <div className="flex flex-col items-center text-center">
+                <VideoOff className="w-12 h-12 text-red-400 mb-3" />
+                <p className="text-white text-lg">Camera or microphone access denied</p>
+                <p className="text-white/70 text-sm mt-2 max-w-xs">
+                  Please check your browser permissions and allow access to your camera and microphone
+                </p>
+                <Button 
+                  variant="secondary" 
+                  className="mt-4"
+                  onClick={retryConnection}
+                >
+                  Try Again
+                </Button>
+              </div>
             </div>
+          )}
+          
+          <video 
+            ref={remoteVideoRef}
+            autoPlay 
+            playsInline
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-sm rounded">
+            {remoteUserName}
           </div>
-        )}
-        
-        <video 
-          ref={remoteVideoRef}
-          autoPlay 
-          playsInline
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-sm rounded">
-          {remoteUserName}
         </div>
-      </div>
-      
-      {/* Local video (bottom) */}
-      <div className="relative bg-gray-800 rounded-lg overflow-hidden h-1/3">
-        <video 
-          ref={localVideoRef}
-          autoPlay 
-          playsInline 
-          muted 
-          className="w-full h-full object-cover"
-        />
         
-        {!videoEnabled && (
-          <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center">
-            <VideoOff className="w-10 h-10 text-white/70" />
+        {/* Local video (right) */}
+        <div className="relative bg-gray-800 rounded-lg overflow-hidden flex-1 flex items-center justify-center h-full">
+          <video 
+            ref={localVideoRef}
+            autoPlay 
+            playsInline 
+            muted 
+            className="w-full h-full object-cover"
+          />
+          
+          {!videoEnabled && (
+            <div className="absolute inset-0 bg-gray-800/80 flex items-center justify-center">
+              <VideoOff className="w-10 h-10 text-white/70" />
+            </div>
+          )}
+          
+          <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-sm rounded">
+            You
           </div>
-        )}
-        
-        <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 text-sm rounded">
-          You
         </div>
       </div>
       
@@ -253,8 +274,8 @@ const VideoChat: React.FC<VideoChatProps> = ({
         </motion.div>
       </AnimatePresence>
       
-      {/* Video call controls */}
-      <div className="flex justify-center gap-3 mt-2">
+      {/* Video call controls - centered at bottom */}
+      <div className="flex justify-center gap-3 py-3 bg-gray-100 dark:bg-gray-900 rounded-lg">
         <Button 
           variant="outline" 
           size="icon" 
