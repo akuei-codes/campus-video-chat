@@ -41,7 +41,7 @@ const MatchNotification: React.FC<MatchNotificationProps> = ({
           
           // Show toast notification
           toast.custom((t) => (
-            <div className={`max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ${t.visible ? 'animate-enter' : 'animate-leave'}`}>
+            <div className={`max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ${t.dismissed ? 'animate-leave' : 'animate-enter'}`}>
               <div className="flex-1 w-0 p-4">
                 <div className="flex items-start">
                   <div className="flex-shrink-0 pt-0.5 mr-3">

@@ -348,16 +348,29 @@ export async function checkConnection(userId1: string, userId2: string): Promise
 
 // Presence functions
 export async function updatePresenceStatus(userId: string, status: 'online' | 'matching' | 'in_call' | 'idle' | 'offline') {
-  const { error } = await supabase
-    .from('presence')
-    .upsert({
+  try {
+    const presence = {
       user_id: userId,
       status: status,
-      last_seen: new Date().toISOString()
-    });
-  
-  if (error) throw error;
-  return true;
+      last_seen: new Date().toISOString(),
+      // Initialize metadata as empty object
+      metadata: {}
+    };
+
+    const { error } = await supabase
+      .from('presence')
+      .upsert(presence);
+    
+    if (error) {
+      console.error("Error updating presence:", error);
+      throw error;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error in updatePresenceStatus:", error);
+    return false;
+  }
 }
 
 // Video room functions
@@ -521,11 +534,19 @@ export async function notifyUserOfMatch(
       return false;
     }
     
-    // Store the match notification in presence table's metadata
-    // This is a workaround since we don't have a notifications table
-    const { error } = await supabase
+    // First get the current presence record
+    const { data: presenceData, error: fetchError } = await supabase
       .from('presence')
-      .update({
+      .select('*')
+      .eq('user_id', matchedUserId)
+      .single();
+      
+    if (fetchError) {
+      console.error('Error fetching presence:', fetchError);
+      
+      // If record doesn't exist, create a new one
+      const newPresence = {
+        user_id: matchedUserId,
         status: 'matching',
         last_seen: new Date().toISOString(),
         metadata: {
@@ -537,6 +558,38 @@ export async function notifyUserOfMatch(
             created_at: new Date().toISOString()
           }
         }
+      };
+      
+      const { error: insertError } = await supabase
+        .from('presence')
+        .insert(newPresence);
+      
+      if (insertError) {
+        console.error('Error inserting presence:', insertError);
+        return false;
+      }
+      
+      return true;
+    }
+    
+    // Otherwise update the existing record
+    const updatedMetadata = {
+      ...(presenceData.metadata || {}), // Keep existing metadata if any
+      match_notification: {
+        matcher_id: matcherId,
+        matcher_name: matcherProfile.full_name,
+        matcher_avatar: matcherProfile.avatar_url,
+        room_id: roomId,
+        created_at: new Date().toISOString()
+      }
+    };
+    
+    const { error } = await supabase
+      .from('presence')
+      .update({
+        status: 'matching',
+        last_seen: new Date().toISOString(),
+        metadata: updatedMetadata
       })
       .eq('user_id', matchedUserId);
     
@@ -561,7 +614,12 @@ export async function checkForPendingMatch(userId: string) {
       .eq('user_id', userId)
       .single();
     
-    if (error || !data || !data.metadata || !data.metadata.match_notification) {
+    if (error) {
+      console.error('Error checking pending match:', error);
+      return null;
+    }
+    
+    if (!data || !data.metadata || !data.metadata.match_notification) {
       return null;
     }
     
@@ -575,10 +633,26 @@ export async function checkForPendingMatch(userId: string) {
 // Add function to clear pending match notification
 export async function clearPendingMatch(userId: string) {
   try {
+    // First get the current presence record to preserve other metadata
+    const { data: presenceData, error: fetchError } = await supabase
+      .from('presence')
+      .select('metadata')
+      .eq('user_id', userId)
+      .single();
+    
+    if (fetchError) {
+      console.error('Error fetching presence for clearing:', fetchError);
+      return false;
+    }
+    
+    // Create a new metadata object without the match_notification field
+    const updatedMetadata = { ...(presenceData.metadata || {}) };
+    delete updatedMetadata.match_notification;
+    
     const { error } = await supabase
       .from('presence')
       .update({
-        metadata: {}
+        metadata: updatedMetadata
       })
       .eq('user_id', userId);
     

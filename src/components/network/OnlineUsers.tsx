@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,10 +32,26 @@ export const OnlineUsers = ({
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   
+  const fetchOnlineUsers = useCallback(async () => {
+    if (!currentUserId) return;
+    
+    try {
+      setLoading(true);
+      const users = await getOnlineUsers(currentUserId, filters);
+      
+      if (users) {
+        setOnlineUsers(users);
+      }
+    } catch (error) {
+      console.error('Error fetching online users:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUserId, filters]);
+  
   useEffect(() => {
     // If onlineUsers are provided as props, use them
     if (providedOnlineUsers) {
-      console.log("OnlineUsers component received users:", providedOnlineUsers);
       setOnlineUsers(providedOnlineUsers);
       return;
     }
@@ -44,24 +60,8 @@ export const OnlineUsers = ({
     if (currentUserId) {
       fetchOnlineUsers();
     }
-  }, [currentUserId, filters, providedOnlineUsers]);
+  }, [currentUserId, filters, providedOnlineUsers, fetchOnlineUsers]);
 
-  const fetchOnlineUsers = async () => {
-    if (!currentUserId) return;
-    
-    try {
-      setLoading(true);
-      console.log("OnlineUsers component fetching users for:", currentUserId);
-      const users = await getOnlineUsers(currentUserId, filters);
-      console.log("OnlineUsers component fetched users:", users);
-      setOnlineUsers(users);
-    } catch (error) {
-      console.error('Error fetching online users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   const inviteToCall = async (targetUser: Profile) => {
     if (!currentUserId) return;
     
